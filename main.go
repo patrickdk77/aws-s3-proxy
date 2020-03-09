@@ -12,6 +12,7 @@ import (
 	"github.com/pottava/aws-s3-proxy/internal/controllers"
 	common "github.com/pottava/aws-s3-proxy/internal/http"
 	"github.com/pottava/aws-s3-proxy/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -23,15 +24,16 @@ var (
 func main() {
 	validateAwsConfigurations()
 
-	http.Handle("/", common.WrapHandler(controllers.AwsS3))
-
-	http.HandleFunc("/--version", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle(config.Config.MetricsPath, promhttp.Handler())
+	http.HandleFunc(config.Config.HealthCheckPath, common.Healthcheck)
+	http.HandleFunc(config.Config.VersionPath, func(w http.ResponseWriter, r *http.Request) {
 		if len(commit) > 0 && len(date) > 0 {
 			fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
 			return
 		}
 		fmt.Fprintln(w, ver)
 	})
+	http.Handle("/", common.WrapHandler(controllers.AwsS3))
 
 	// Listen & Serve
 	addr := net.JoinHostPort(config.Config.Host, config.Config.Port)

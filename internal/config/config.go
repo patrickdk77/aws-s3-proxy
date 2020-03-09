@@ -40,6 +40,8 @@ type config struct { // nolint
 	CorsAllowHeaders   string        // CORS_ALLOW_HEADERS
 	CorsMaxAge         int64         // CORS_MAX_AGE
 	HealthCheckPath    string        // HEALTHCHECK_PATH
+	MetricsPath        string        // METRICS_PATH
+	VersionPath        string        // VERSION_PATH
 	AllPagesInDir      bool          // GET_ALL_PAGES_IN_DIR
 	MaxIdleConns       int           // MAX_IDLE_CONNECTIONS
 	IdleConnTimeout    time.Duration // IDLE_CONNECTION_TIMEOUT
@@ -122,6 +124,8 @@ func Setup() {
 		CorsAllowHeaders:   os.Getenv("CORS_ALLOW_HEADERS"),
 		CorsMaxAge:         corsMaxAge,
 		HealthCheckPath:    os.Getenv("HEALTHCHECK_PATH"),
+		MetricsPath:        os.Getenv("METRICS_PATH"),
+		VersionPath:        os.Getenv("VERSION_PATH"),
 		AllPagesInDir:      allPagesInDir,
 		MaxIdleConns:       maxIdleConns,
 		IdleConnTimeout:    idleConnTimeout,
@@ -129,6 +133,21 @@ func Setup() {
 		InsecureTLS:        insecureTLS,
 		JwtSecretKey:       os.Getenv("JWT_SECRET_KEY"),
 	}
+	// Default healthcheck endpoint
+	if Config.HealthCheckPath == "" {
+		Config.HealthCheckPath = "/healthz"
+	}
+
+	// Default metrics endpoint
+	if Config.MetricsPath == "" {
+		Config.MetricsPath = "/metrics"
+	}
+
+	// Default version endpoint
+	if Config.VersionPath == "" {
+		Config.VersionPath = "/version"
+	}
+
 	// Proxy
 	log.Printf("[config] Proxy to %v", Config.S3Bucket)
 	log.Printf("[config] AWS Region: %v", Config.AwsRegion)

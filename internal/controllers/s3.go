@@ -29,13 +29,6 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		path = strings.TrimPrefix(path, c.StripPath)
 	}
 
-	// If there is a health check path defined, and if this path matches it,
-	// then return 200 OK and return.
-	// Note: we want to apply the health check *after* the prefix is stripped.
-	if len(c.HealthCheckPath) > 0 && path == c.HealthCheckPath {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
 	// Range header
 	var rangeHeader *string
 	if candidate := r.Header.Get("Range"); !swag.IsZero(candidate) {

@@ -19,12 +19,6 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c := config.Config
 
-		// If there is a health check path defined, and if this path matches it,
-		// then return 200 OK and return.
-		if len(c.HealthCheckPath) > 0 && r.URL.Path == c.HealthCheckPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		// CORS
 		if (len(c.CorsAllowOrigin) > 0) &&
 			(len(c.CorsAllowMethods) > 0) &&
