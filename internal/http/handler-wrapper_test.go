@@ -102,7 +102,7 @@ func TestSplitCsvLine(t *testing.T) {
 	assert.Equal(t, expected, len(lines))
 }
 
-func TestTrimedSplitCsvLine(t *testing.T) {
+func TestTrimmedSplitCsvLine(t *testing.T) {
 	expected := 3
 
 	lines := splitCsvLine("1 , 2 ,3 ")

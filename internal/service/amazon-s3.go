@@ -27,7 +27,7 @@ func (c client) S3listObjects(bucket, prefix string) (*s3.ListObjectsOutput, err
 	if !config.Config.AllPagesInDir {
 		return s3.New(c.Session).ListObjectsWithContext(c.Context, req)
 	}
-	// List all objects with pagenation
+	// List all objects with pagination
 	result := &s3.ListObjectsOutput{
 		CommonPrefixes: []*s3.CommonPrefix{},
 		Contents:       []*s3.Object{},

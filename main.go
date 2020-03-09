@@ -27,10 +27,10 @@ func main() {
 
 	http.HandleFunc("/--version", func(w http.ResponseWriter, r *http.Request) {
 		if len(commit) > 0 && len(date) > 0 {
-			fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
+			_, _ = fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
 			return
 		}
-		fmt.Fprintln(w, ver)
+		_, _ = fmt.Fprintln(w, ver)
 	})
 
 	// Listen & Serve
