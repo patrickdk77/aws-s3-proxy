@@ -67,11 +67,9 @@ func timeTrack(start time.Time, timer *time.Duration) {
 // Check S3 bucket connectivity
 func (h *HealthcheckResponse) checkS3Bucket() error {
 	defer timeTrack(time.Now(), &(h.S3Bucket.Time))
-	bucket := config.Config.S3Bucket
-	key := "/healthz"
 
 	client := service.NewClient(context.Background(), aws.String(config.Config.AwsRegion))
-	if _, err := client.S3get(bucket, key, nil); err != nil {
+	if _, err := client.S3get(config.Config.S3Bucket, config.Config.HealthCheckPath, nil); err != nil {
 		h.S3Bucket.Error = err.Error()
 		return err
 	}
