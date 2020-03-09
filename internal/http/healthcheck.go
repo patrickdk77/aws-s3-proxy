@@ -13,8 +13,8 @@ import (
 	"github.com/pottava/aws-s3-proxy/internal/service"
 )
 
-// HealthcheckRespose struct builds the healthcheck endpoint response
-type HealthcheckRespose struct {
+// HealthcheckResponse struct builds the healthcheck endpoint response
+type HealthcheckResponse struct {
 	S3Bucket healthcheck `json:"s3_bucket"`
 }
 
@@ -26,8 +26,8 @@ type healthcheck struct {
 }
 
 // Healthcheck validates the s3 proxy dependencies and return a 500 if it is not ready to serve traffic
-func Healthcheck(w http.ResponseWriter, r *http.Request) {
-	res := &HealthcheckRespose{
+func Healthcheck(w http.ResponseWriter, _ *http.Request) {
+	res := &HealthcheckResponse{
 		S3Bucket: healthcheck{
 			Healthy: false,
 			Time:    0,
@@ -52,11 +52,11 @@ func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	js, err := json.Marshal(res)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"cannot marshal response"}`))
+		_, _ = w.Write([]byte(`{"error":"cannot marshal response"}`))
 		return
 	}
 	res.S3Bucket.Healthy = true
-	w.Write(js)
+	_, _ = w.Write(js)
 }
 
 // This function saves the time it took another function to complete
@@ -65,7 +65,7 @@ func timeTrack(start time.Time, timer *time.Duration) {
 }
 
 // Check S3 bucket connectivity
-func (h *HealthcheckRespose) checkS3Bucket() error {
+func (h *HealthcheckResponse) checkS3Bucket() error {
 	defer timeTrack(time.Now(), &(h.S3Bucket.Time))
 	bucket := config.Config.S3Bucket
 	key := "/healthz"
