@@ -55,7 +55,6 @@ func Healthcheck(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"error":"cannot marshal response"}`))
 		return
 	}
-	res.S3Bucket.Healthy = true
 	_, _ = w.Write(js)
 }
 
