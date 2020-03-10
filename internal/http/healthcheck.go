@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/pottava/aws-s3-proxy/internal/metrics"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -53,6 +56,7 @@ func HealthcheckHandler(w http.ResponseWriter, req *http.Request) {
 	err := executeHealthCheck(req.Context(), service.NewClient(req.Context(), aws.String(config.Config.AwsRegion)))
 	httpRes.S3Bucket.Time = time.Since(start)
 	httpRes.S3Bucket.TimeHuman = httpRes.S3Bucket.Time.Milliseconds()
+
 	if err == nil {
 		httpRes.S3Bucket.Healthy = true
 	} else {
@@ -65,9 +69,12 @@ func HealthcheckHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	//if there was an error on unmarshaling or the end point is not healthy, then return an appropriate status code.
+	statusCode := http.StatusOK
 	if err != nil || !httpRes.S3Bucket.Healthy {
-		w.WriteHeader(http.StatusInternalServerError)
+		statusCode = http.StatusInternalServerError
 	}
+	w.WriteHeader(statusCode)
+	metrics.HealthCheck.WithLabelValues(strconv.Itoa(statusCode)).Inc()
 
 	//write final result
 	_, _ = w.Write(body)
