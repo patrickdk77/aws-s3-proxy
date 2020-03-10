@@ -47,15 +47,15 @@ func TestConfigDefaults(t *testing.T) {
 }
 
 func TestChangeDefaults(t *testing.T) {
-	os.Setenv("DIRECTORY_LISTINGS", "1")
-	os.Setenv("ACCESS_LOG", "True")
-	os.Setenv("CONTENT_ENCODING", "f")
-	os.Setenv("CORS_MAX_AGE", "0")
-	os.Setenv("GET_ALL_PAGES_IN_DIR", "TRUE")
-	os.Setenv("MAX_IDLE_CONNECTIONS", "0")
-	os.Setenv("IDLE_CONNECTION_TIMEOUT", "60")
-	os.Setenv("DISABLE_COMPRESSION", "FALSE")
-	os.Setenv("INSECURE_TLS", "t")
+	_ = os.Setenv("DIRECTORY_LISTINGS", "1")
+	_ = os.Setenv("ACCESS_LOG", "True")
+	_ = os.Setenv("CONTENT_ENCODING", "f")
+	_ = os.Setenv("CORS_MAX_AGE", "0")
+	_ = os.Setenv("GET_ALL_PAGES_IN_DIR", "TRUE")
+	_ = os.Setenv("MAX_IDLE_CONNECTIONS", "0")
+	_ = os.Setenv("IDLE_CONNECTION_TIMEOUT", "60")
+	_ = os.Setenv("DISABLE_COMPRESSION", "FALSE")
+	_ = os.Setenv("INSECURE_TLS", "t")
 
 	Setup()
 

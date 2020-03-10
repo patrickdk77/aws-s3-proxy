@@ -12,7 +12,7 @@ func TestWriteText(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c := custom{Writer: w, ResponseWriter: w}
-	c.Write([]byte("hello"))
+	_, _ = c.Write([]byte("hello"))
 
 	assert.Equal(t, expected, c.Header().Get("Content-Type"))
 }
@@ -22,7 +22,7 @@ func TestWriteHTML(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c := custom{Writer: w, ResponseWriter: w}
-	c.Write([]byte("<html><body>hello</body></html>"))
+	_, _ = c.Write([]byte("<html><body>hello</body></html>"))
 
 	assert.Equal(t, expected, c.Header().Get("Content-Type"))
 }
@@ -32,7 +32,7 @@ func TestWritePDF(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c := custom{Writer: w, ResponseWriter: w}
-	c.Write([]byte("%PDF-test"))
+	_, _ = c.Write([]byte("%PDF-test"))
 
 	assert.Equal(t, expected, c.Header().Get("Content-Type"))
 }

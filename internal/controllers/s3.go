@@ -65,7 +65,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	}
 	setHeadersFromAwsResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
 
-	io.Copy(w, obj.Body) // nolint
+	_, _ = io.Copy(w, obj.Body) // nolint
 }
 
 func replacePathWithSymlink(client service.AWS, bucket, symlinkPath string) (*string, error) {
@@ -148,17 +148,17 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	// Output as a HTML
 	if strings.EqualFold(config.Config.DirListingFormat, "html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintln(w, toHTML(files, updatedAt))
+		_, _ = fmt.Fprintln(w, toHTML(files, updatedAt))
 		return
 	}
 	// Output as a JSON
-	bytes, merr := json.Marshal(files)
+	jsonBytes, merr := json.Marshal(files)
 	if merr != nil {
 		http.Error(w, merr.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintln(w, string(bytes))
+	_, _ = fmt.Fprintln(w, string(jsonBytes))
 }
 
 func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map[string]time.Time) {
@@ -183,7 +183,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map
 		updatedAt[candidate] = *obj.LastModified
 	}
 	// Sort file names
-	files := []string{}
+	var files []string
 	for file := range candidates {
 		files = append(files, file)
 	}
