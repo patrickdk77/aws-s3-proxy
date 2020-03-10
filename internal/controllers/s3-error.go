@@ -8,12 +8,13 @@ import (
 )
 
 func toHTTPError(err error) (int, string) {
+	statusCode := http.StatusInternalServerError
 	if aerr, ok := err.(awserr.Error); ok {
 		switch aerr.Code() {
-		case s3.ErrCodeNoSuchBucket, s3.ErrCodeNoSuchKey:
-			return http.StatusNotFound, aerr.Error()
+		case s3.ErrCodeNoSuchKey:
+			statusCode = http.StatusNotFound
+			break
 		}
-		return http.StatusInternalServerError, aerr.Error()
 	}
-	return http.StatusInternalServerError, err.Error()
+	return statusCode, err.Error()
 }
