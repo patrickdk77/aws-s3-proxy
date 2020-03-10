@@ -49,13 +49,7 @@ func executeHealthCheck(_ context.Context, awsClient service.AWS) error {
 func HealthcheckHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	start := time.Now()
-	httpRes := &HealthcheckResponse{
-		S3Bucket: healthcheck{
-			Healthy: false,
-			Time:    0,
-			Error:   "",
-		},
-	}
+	httpRes := &HealthcheckResponse{}
 	err := executeHealthCheck(req.Context(), service.NewClient(req.Context(), aws.String(config.Config.AwsRegion)))
 	httpRes.S3Bucket.Time = time.Since(start)
 	httpRes.S3Bucket.TimeHuman = httpRes.S3Bucket.Time.Milliseconds()
