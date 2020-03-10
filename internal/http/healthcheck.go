@@ -18,61 +18,63 @@ type HealthcheckResponse struct {
 	S3Bucket healthcheck `json:"s3_bucket"`
 }
 
-// Healthcheck wraps the content of each service dependency
+// HealthcheckHandler wraps the content of each service dependency
 type healthcheck struct {
-	Healthy bool          `json:"healthy"`
-	Time    time.Duration `json:"time_ns"`
-	Error   string        `json:"error"`
+	Healthy   bool          `json:"healthy"`
+	Time      time.Duration `json:"time_ns"`
+	TimeHuman int64         `json:"time_human"`
+	Error     string        `json:"error,omitempty"`
 }
 
-// Healthcheck validates the s3 proxy dependencies and return a 500 if it is not ready to serve traffic
-func Healthcheck(w http.ResponseWriter, _ *http.Request) {
-	res := &HealthcheckResponse{
+func executeHealthCheck(_ context.Context, awsClient service.AWS) error {
+	_, err := awsClient.S3get(config.Config.S3Bucket, config.Config.HealthCheckPath, nil)
+
+	//if file exists, return ok
+	if err == nil {
+		return nil
+	}
+
+	//we have some kind of error. Normally we accept the 404 key not found because it means that we are able
+	//to reach the endpoint without any issue.
+	if aerr, ok := err.(awserr.Error); ok {
+		if aerr.Code() == s3.ErrCodeNoSuchKey {
+			return nil
+		}
+	}
+
+	return err
+}
+
+// HealthcheckHandler validates the s3 proxy dependencies and return a 500 if it is not ready to serve traffic
+func HealthcheckHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	start := time.Now()
+	httpRes := &HealthcheckResponse{
 		S3Bucket: healthcheck{
 			Healthy: false,
 			Time:    0,
 			Error:   "",
 		},
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := res.checkS3Bucket(); err != nil {
-		res.S3Bucket.Error = err.Error()
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchKey:
-				res.S3Bucket.Healthy = true
-				res.S3Bucket.Error = ""
-			default:
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+	err := executeHealthCheck(req.Context(), service.NewClient(req.Context(), aws.String(config.Config.AwsRegion)))
+	httpRes.S3Bucket.Time = time.Since(start)
+	httpRes.S3Bucket.TimeHuman = httpRes.S3Bucket.Time.Milliseconds()
+	if err == nil {
+		httpRes.S3Bucket.Healthy = true
+	} else {
+		httpRes.S3Bucket.Error = err.Error()
 	}
-	js, err := json.Marshal(res)
+	//marshal response
+	body, err := json.Marshal(httpRes)
 	if err != nil {
+		body = []byte(`{"error":"cannot marshal response"}`)
+	}
+
+	//if there was an error on unmarshaling or the end point is not healthy, then return an appropriate status code.
+	if err != nil || !httpRes.S3Bucket.Healthy {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"error":"cannot marshal response"}`))
-		return
-	}
-	_, _ = w.Write(js)
-}
-
-// This function saves the time it took another function to complete
-func timeTrack(start time.Time, timer *time.Duration) {
-	*timer = time.Since(start)
-}
-
-// Check S3 bucket connectivity
-func (h *HealthcheckResponse) checkS3Bucket() error {
-	defer timeTrack(time.Now(), &(h.S3Bucket.Time))
-
-	client := service.NewClient(context.Background(), aws.String(config.Config.AwsRegion))
-	if _, err := client.S3get(config.Config.S3Bucket, config.Config.HealthCheckPath, nil); err != nil {
-		h.S3Bucket.Error = err.Error()
-		return err
 	}
 
-	h.S3Bucket.Healthy = true
-	return nil
+	//write final result
+	_, _ = w.Write(body)
 }

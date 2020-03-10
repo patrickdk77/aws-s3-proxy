@@ -25,7 +25,7 @@ func main() {
 	validateAwsConfigurations()
 
 	http.Handle(config.Config.MetricsPath, promhttp.Handler())
-	http.HandleFunc(config.Config.HealthCheckPath, common.Healthcheck)
+	http.HandleFunc(config.Config.HealthCheckPath, common.HealthcheckHandler)
 	http.HandleFunc(config.Config.VersionPath, func(w http.ResponseWriter, r *http.Request) {
 		if len(commit) > 0 && len(date) > 0 {
 			_, _ = fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
