@@ -32,11 +32,11 @@ type healthcheck struct {
 func executeHealthCheck(_ context.Context, awsClient service.AWS) error {
 	_, err := awsClient.S3get(config.Config.S3Bucket, config.Config.HealthCheckPath, nil)
 
+	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.HealthcheckSource)
 	//if file exists, return ok
 	if err == nil {
 		return nil
 	}
-
 	//we have some kind of error. Normally we accept the 404 key not found because it means that we are able
 	//to reach the endpoint without any issue.
 	if aerr, ok := err.(awserr.Error); ok {
@@ -44,7 +44,6 @@ func executeHealthCheck(_ context.Context, awsClient service.AWS) error {
 			return nil
 		}
 	}
-
 	return err
 }
 

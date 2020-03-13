@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/go-openapi/swag"
 	"github.com/pottava/aws-s3-proxy/internal/config"
+	"github.com/pottava/aws-s3-proxy/internal/metrics"
 	"github.com/pottava/aws-s3-proxy/internal/service"
 )
 
@@ -58,6 +59,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	}
 	// Get a S3 object
 	obj, err := client.S3get(c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
+	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 	if err != nil {
 		code, message := toHTTPError(err)
 		http.Error(w, message, code)
@@ -70,6 +72,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 
 func replacePathWithSymlink(client service.AWS, bucket, symlinkPath string) (*string, error) {
 	obj, err := client.S3get(bucket, symlinkPath, nil)
+	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +141,7 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	prefix = strings.TrimPrefix(prefix, "/")
 
 	result, err := client.S3listObjects(bucket, prefix)
+	metrics.UpdateS3Reads(err, metrics.ListObjectAction, metrics.ProxySource)
 	if err != nil {
 		code, message := toHTTPError(err)
 		http.Error(w, message, code)
