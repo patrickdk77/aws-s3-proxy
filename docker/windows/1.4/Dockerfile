@@ -5,5 +5,5 @@ ENV AWS_REGION=us-east-1 \
     ACCESS_LOG=false \
     CONTENT_ENCODING=true
 
-ADD https://github.com/pottava/aws-s3-proxy/releases/download/v1.4.1/windows_amd64.exe proxy.exe
+ADD https://github.com/patrickdk77/aws-s3-proxy/releases/download/v1.4.1/windows_amd64.exe proxy.exe
 ENTRYPOINT ["C:\\proxy.exe"]

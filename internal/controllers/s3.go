@@ -15,8 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/go-openapi/swag"
-	"github.com/pottava/aws-s3-proxy/internal/config"
-	"github.com/pottava/aws-s3-proxy/internal/service"
+	"github.com/patrickdk77/aws-s3-proxy/internal/config"
+	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
 
 // AwsS3 handles requests for Amazon S3
@@ -113,7 +113,7 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, h
 	setStrHeader(w, "Content-Encoding", obj.ContentEncoding)
 	setStrHeader(w, "Content-Language", obj.ContentLanguage)
 
-	// Fix https://github.com/pottava/aws-s3-proxy/issues/20
+	// Fix https://github.com/patrickdk77/aws-s3-proxy/issues/20
 	if len(w.Header().Get("Content-Encoding")) == 0 {
 		setIntHeader(w, "Content-Length", obj.ContentLength)
 	}

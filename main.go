@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/go-openapi/swag"
-	"github.com/pottava/aws-s3-proxy/internal/config"
-	"github.com/pottava/aws-s3-proxy/internal/controllers"
-	common "github.com/pottava/aws-s3-proxy/internal/http"
-	"github.com/pottava/aws-s3-proxy/internal/service"
+	"github.com/patrickdk77/aws-s3-proxy/internal/config"
+	"github.com/patrickdk77/aws-s3-proxy/internal/controllers"
+	common "github.com/patrickdk77/aws-s3-proxy/internal/http"
+	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
 
 var (

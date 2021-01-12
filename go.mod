@@ -1,4 +1,4 @@
-module github.com/pottava/aws-s3-proxy
+module github.com/patrickdk77/aws-s3-proxy
 
 go 1.13
 
