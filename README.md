@@ -52,25 +52,25 @@ SPA                       | Signle Page Application - If true server will return
 
 ### 2. Run the application
 
-`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET patrickdk77/s3-proxy`
+`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET patrickdk/s3-proxy`
 
 * with basic auth:
 
-`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e BASIC_AUTH_USER -e BASIC_AUTH_PASS patrickdk77/s3-proxy`
+`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e BASIC_AUTH_USER -e BASIC_AUTH_PASS patrickdk/s3-proxy`
 
 * with TLS:
 
-`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e SSL_CERT_PATH -e SSL_KEY_PATH patrickdk77/s3-proxy`
+`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e SSL_CERT_PATH -e SSL_KEY_PATH patrickdk/s3-proxy`
 
 * with CORS:
 
-`docker run -d -p 8080:80 -e CORS_ALLOW_ORIGIN -e CORS_ALLOW_METHODS -e CORS_ALLOW_HEADERS -e CORS_MAX_AGE patrickdk77/s3-proxy`
+`docker run -d -p 8080:80 -e CORS_ALLOW_ORIGIN -e CORS_ALLOW_METHODS -e CORS_ALLOW_HEADERS -e CORS_MAX_AGE patrickdk/s3-proxy`
 
 * with docker-compose.yml:
 
 ```
 proxy:
-  image: patrickdk77/s3-proxy
+  image: patrickdk/s3-proxy
   ports:
     - 8080:80
   environment:
