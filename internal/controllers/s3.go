@@ -152,12 +152,17 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 		http.Error(w, message, code)
 		return
 	}
-	files, updatedAt := convertToMaps(result, prefix)
+	files, updatedAt, size := convertToMaps(result, prefix)
 
 	// Output as a HTML
 	if strings.EqualFold(config.Config.DirListingFormat, "html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintln(w, toHTML(files, updatedAt))
+		return
+	}
+	if strings.EqualFold(config.Config.DirListingFormat, "apache") {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintln(w, toApache(prefix, files, updatedAt, size))
 		return
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "shtml") {
@@ -176,9 +181,10 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	fmt.Fprintln(w, string(bytes))
 }
 
-func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map[string]time.Time) {
+func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map[string]time.Time, map[string]int64) {
 	candidates := map[string]bool{}
 	updatedAt := map[string]time.Time{}
+	size := map[string]int64{}
 
 	// Prefixes
 	for _, obj := range s3output.CommonPrefixes {
@@ -196,6 +202,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map
 		}
 		candidates[candidate] = true
 		updatedAt[candidate] = *obj.LastModified
+		size[candidate] = *obj.Size
 	}
 	// Sort file names
 	files := []string{}
@@ -204,7 +211,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map
 	}
 	sort.Sort(s3objects(files))
 
-	return files, updatedAt
+	return files, updatedAt, size
 }
 
 func toHTML(files []string, updatedAt map[string]time.Time) string {
@@ -217,6 +224,39 @@ func toHTML(files []string, updatedAt map[string]time.Time) string {
 		html += "</li>"
 	}
 	return html + "</ul></body></html>"
+}
+
+func toApache(prefix string, files []string, updatedAt map[string]time.Time, size map[string]int64) string {
+	html := "<!DOCTYPE html><html><head><title>Index of " + prefix + "</title></head>"
+	html += "<body><h1>Index of " + prefix + "</h1><pre><table><tr><th>Name</th><th>Last Modified</th><th>Size</th></tr>"
+	for _, file := range files {
+		html += "<tr><td><a href=\"" + file + "\">" + file + "</a></td>"
+		if timestamp, ok := updatedAt[file]; ok {
+			html += "<td>" + timestamp.Format(time.RFC3339) + "</td>"
+		} else {
+			html += "<td>-</td>"
+		}
+		if fileSize, ok := size[file]; ok {
+			fsizeMod := ""
+		        if fileSize > 2000 {
+		        	fsizeMod="k"
+		        	fileSize /= 1024
+			}
+		        if fileSize > 2000 {
+		        	fsizeMod="M"
+		        	fileSize /= 1024
+			}
+		        if fileSize > 2000 {
+		        	fsizeMod="G"
+		        	fileSize /= 1024
+			}
+			html += "<td>" + strconv.FormatInt(fileSize,10) + fsizeMod + "</td>"
+		} else {
+			html += "<td>-</td>"
+		}
+		html += "</tr>"
+	}
+	return html + "</table><hr></pre></body></html>"
 }
 
 func toSimpleHTML(files []string) string {
