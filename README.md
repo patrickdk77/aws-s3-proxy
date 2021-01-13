@@ -1,16 +1,8 @@
 # Reverse proxy for AWS S3 w/ basic authentication
 
-![circleci status](https://circleci.com/gh/pottava/aws-s3-proxy.svg?style=shield&circle-token=9bc17d02e4513df42196523a1791465e65d8ab01)
-
-[![pottava/s3-proxy](http://dockeri.co/image/pottava/s3-proxy)](https://hub.docker.com/r/pottava/s3-proxy/)
-
 Supported tags and respective `Dockerfile` links:
 
-・latest ([docker/linux/2.0/Dockerfile](https://github.com/pottava/aws-s3-proxy/blob/master/docker/linux/2.0/Dockerfile))  
-・2.0 ([docker/linux/2.0/Dockerfile](https://github.com/pottava/aws-s3-proxy/blob/master/docker/linux/2.0/Dockerfile))  
-・1.4 ([docker/linux/1.4/Dockerfile](https://github.com/pottava/aws-s3-proxy/blob/master/docker/linux/1.4/Dockerfile))  
-・1.4-win ([docker/windows/1.4/Dockerfile](https://github.com/pottava/aws-s3-proxy/blob/master/docker/windows/1.4/Dockerfile))  
-・1 ([docker/linux/1.4/Dockerfile](https://github.com/pottava/aws-s3-proxy/blob/master/docker/linux/1.4/Dockerfile))
+・latest ([docker/linux/2.0/Dockerfile](https://github.com/patrickdk77/aws-s3-proxy/blob/master/docker/linux/2.0/Dockerfile))  
 
 ## Description
 
@@ -18,9 +10,6 @@ This is a reverse proxy for AWS S3, which is able to provide basic authenticatio
 You don't need to configure a Bucket for `Website Hosting`.
 
 http://this-proxy.com/access/ -> s3://bucket/access/index.html
-
-([日本語はこちら](https://github.com/pottava/aws-s3-proxy/blob/master/README-ja.md))
-
 
 ## Usage
 
@@ -62,25 +51,25 @@ INSECURE_TLS              | If true it will skip cert checks                  | 
 
 ### 2. Run the application
 
-`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET pottava/s3-proxy`
+`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET patrickdk77/s3-proxy`
 
 * with basic auth:
 
-`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e BASIC_AUTH_USER -e BASIC_AUTH_PASS pottava/s3-proxy`
+`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e BASIC_AUTH_USER -e BASIC_AUTH_PASS patrickdk77/s3-proxy`
 
 * with TLS:
 
-`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e SSL_CERT_PATH -e SSL_KEY_PATH pottava/s3-proxy`
+`docker run -d -p 8080:80 -e AWS_REGION -e AWS_S3_BUCKET -e SSL_CERT_PATH -e SSL_KEY_PATH patrickdk77/s3-proxy`
 
 * with CORS:
 
-`docker run -d -p 8080:80 -e CORS_ALLOW_ORIGIN -e CORS_ALLOW_METHODS -e CORS_ALLOW_HEADERS -e CORS_MAX_AGE pottava/s3-proxy`
+`docker run -d -p 8080:80 -e CORS_ALLOW_ORIGIN -e CORS_ALLOW_METHODS -e CORS_ALLOW_HEADERS -e CORS_MAX_AGE patrickdk77/s3-proxy`
 
 * with docker-compose.yml:
 
 ```
 proxy:
-  image: pottava/s3-proxy
+  image: patrickdk77/s3-proxy
   ports:
     - 8080:80
   environment:
