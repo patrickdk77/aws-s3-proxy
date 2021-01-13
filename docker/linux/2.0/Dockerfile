@@ -5,7 +5,7 @@ FROM golang:1.13.7-alpine3.11 AS builder
 RUN apk --no-cache add gcc musl-dev git
 RUN go get -u github.com/patrickdk77/aws-s3-proxy
 WORKDIR /go/src/github.com/patrickdk77/aws-s3-proxy
-ENV APP_VERSION=v2.0.0
+ENV APP_VERSION=v2.1.0
 RUN git checkout "${APP_VERSION}" > /dev/null 2>&1
 RUN go mod download
 RUN go mod verify
