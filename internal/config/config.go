@@ -47,6 +47,7 @@ type config struct { // nolint
 	DisableCompression   bool          // DISABLE_COMPRESSION
 	InsecureTLS          bool          // Disables TLS validation on request endpoints.
 	JwtSecretKey         string        // JWT_SECRET_KEY
+	SPA                  bool          // SPA
 }
 
 // Setup configurations with environment variables
@@ -103,6 +104,10 @@ func Setup() {
 	if b, err := strconv.ParseBool(os.Getenv("INSECURE_TLS")); err == nil {
 		insecureTLS = b
 	}
+	SPA := false
+	if b, err := strconv.ParseBool(os.Getenv("SPA")); err == nil {
+		SPA = b
+	}
 	Config = &config{
 		AwsRegion:            region,
 		AwsAPIEndpoint:       os.Getenv("AWS_API_ENDPOINT"),
@@ -134,6 +139,7 @@ func Setup() {
 		DisableCompression:   disableCompression,
 		InsecureTLS:          insecureTLS,
 		JwtSecretKey:         os.Getenv("JWT_SECRET_KEY"),
+		SPA:                  SPA,
 	}
 	// Proxy
 	log.Printf("[config] Proxy to %v", Config.S3Bucket)
