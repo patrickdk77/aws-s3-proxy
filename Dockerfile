@@ -6,16 +6,18 @@ ARG BUILD_FROM_PREFIX
 FROM ${BUILD_FROM_PREFIX}golang:1.15-alpine3.13 AS builder
 ARG BUILD_ARCH
 ARG QEMU_ARCH
-ARG BUILD_VERSION
-ARG BUILD_DATE
-ARG BUILD_REF
 COPY .gitignore qemu-${QEMU_ARCH}-static* /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
 COPY . /go/src/
+ARG BUILD_VERSION
+ARG BUILD_DATE
+ARG BUILD_REF
+ARG BUILD_GOARCH
+ARG BUILD_GOOS
 RUN go mod download \
  && go mod verify \
- && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+ && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' \
     -o /app
