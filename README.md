@@ -1,8 +1,6 @@
 # Reverse proxy for AWS S3 w/ basic authentication
 
-Supported tags and respective `Dockerfile` links:
-
-・latest ([docker/linux/2.0/Dockerfile](https://github.com/patrickdk77/aws-s3-proxy/blob/master/docker/linux/2.0/Dockerfile))  
+Added multiarch support to builds.
 
 ## Description
 
