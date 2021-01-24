@@ -4,11 +4,11 @@
 ARG BUILD_FROM_PREFIX
 
 FROM multiarch/qemu-user-static AS qemu
-FROM ${BUILD_FROM_PREFIX}golang:1.14-alpine3.11 AS builder
+FROM ${BUILD_FROM_PREFIX}golang:1.15-alpine3.13 AS builder
 ARG BUILD_ARCH
 ARG QEMU_ARCH
 #COPY .gitignore qemu-${QEMU_ARCH}-static* /usr/bin/
-COPY --from=qemu /usr/bin/qemu-${QEMU_ARCH}-static /usr/bin/
+COPY --from=qemu register /usr/bin/qemu-${QEMU_ARCH}-static* /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
 COPY . /go/src/
@@ -24,7 +24,7 @@ RUN go mod download \
     -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' \
     -o /app
 
-FROM alpine:3.11 AS libs
+FROM alpine:3.13 AS libs
 RUN apk --no-cache add ca-certificates
 
 FROM scratch
@@ -41,7 +41,7 @@ LABEL maintainer="Patrick Domack (patrickdk@patrickdk.com)" \
   org.label-schema.schema-version="1.0" \
   org.label-schema.build-date="${BUILD_DATE}" \
   org.label-schema.name="aws-s3-proxy" \
-  org.label-schema.description="Manage Tasmota scheduled backups and restores." \
+  org.label-schema.description="AWS S3 proxy with indexing" \
   org.label-schema.url="https://github.com/patrickdk77/aws-s3-proxy" \
   org.label-schema.usage="https://github.com/patrickdk77/aws-s3-proxy/tree/master/README.md" \
   org.label-schema.vcs-url="https://github.com/patrickdk77/aws-s3-proxy" \
