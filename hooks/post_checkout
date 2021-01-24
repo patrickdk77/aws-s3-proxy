@@ -43,7 +43,8 @@ echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯�
 #      - wait for https://github.com/moby/moby/issues/14080
 #
 
-docker export multiarch/qemu-user-static | tar -x --wildcards 'usr/bin/qemu-*'
+docker create --name=qemu multiarch/qemu-user-static
+docker export qemu | tar -x --wildcards 'usr/bin/qemu-*'
 for arch in ${build_architectures[@]}; do
   cp usr/bin/qemu-${docker_qemu_arch_map[${arch}]}-static qemu-${docker_qemu_arch_map[${arch}]}-static
 done
