@@ -3,12 +3,10 @@
 
 ARG BUILD_FROM_PREFIX
 
-FROM multiarch/qemu-user-static AS qemu
 FROM ${BUILD_FROM_PREFIX}golang:1.15-alpine3.13 AS builder
 ARG BUILD_ARCH
 ARG QEMU_ARCH
-#COPY .gitignore qemu-${QEMU_ARCH}-static* /usr/bin/
-COPY --from=qemu register /usr/bin/qemu-${QEMU_ARCH}-static* /usr/bin/
+COPY .gitignore qemu-${QEMU_ARCH}-static* /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
 COPY . /go/src/
