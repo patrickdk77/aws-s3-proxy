@@ -2,14 +2,14 @@ version: "2.1"
 
 services:
   app:
-    image: golang:1.13.7-alpine3.11
-    command: go run main.go
+    image: aws-s3-proxy
+    #command: go run main.go
     ports:
       - 8080:80
-    volumes:
-      - $GOPATH:/go
-      - .:/go/src/github.com/patrickdk77/aws-s3-proxy
-    working_dir: /go/src/github.com/patrickdk77/aws-s3-proxy
+    #volumes:
+    #  - $GOPATH:/go
+    #  - .:/go/src/github.com/patrickdk77/aws-s3-proxy
+    #working_dir: /go/src/github.com/patrickdk77/aws-s3-proxy
     environment:
       - AWS_REGION=ap-northeast-1
       - AWS_ACCESS_KEY_ID

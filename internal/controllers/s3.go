@@ -17,6 +17,7 @@ import (
 	"github.com/go-openapi/swag"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
+	"github.com/patrickdk77/aws-s3-proxy/internal/metrics"
 )
 
 // AwsS3 handles requests for Amazon S3
@@ -29,13 +30,6 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		path = strings.TrimPrefix(path, c.StripPath)
 	}
 
-	// If there is a health check path defined, and if this path matches it,
-	// then return 200 OK and return.
-	// Note: we want to apply the health check *after* the prefix is stripped.
-	if len(c.HealthCheckPath) > 0 && path == c.HealthCheckPath {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
 	// Range header
 	var rangeHeader *string
 	if candidate := r.Header.Get("Range"); !swag.IsZero(candidate) {
@@ -67,6 +61,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	}
 	// Get a S3 object
 	obj, err := client.S3get(c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
+	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 	if err != nil {
 		code, message := toHTTPError(err)
 
@@ -93,11 +88,12 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	}
 	setHeadersFromAwsResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
 
-	io.Copy(w, obj.Body) // nolint
+	_, _ = io.Copy(w, obj.Body) // nolint
 }
 
 func replacePathWithSymlink(client service.AWS, bucket, symlinkPath string) (*string, error) {
 	obj, err := client.S3get(bucket, symlinkPath, nil)
+	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +162,7 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	prefix = strings.TrimPrefix(prefix, "/")
 
 	result, err := client.S3listObjects(bucket, prefix)
+	metrics.UpdateS3Reads(err, metrics.ListObjectAction, metrics.ProxySource)
 	if err != nil {
 		code, message := toHTTPError(err)
 		http.Error(w, message, code)
@@ -176,7 +173,7 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	// Output as a HTML
 	if strings.EqualFold(config.Config.DirListingFormat, "html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintln(w, toHTML(files, updatedAt))
+		_, _ = fmt.Fprintln(w, toHTML(files, updatedAt))
 		return
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "apache") {
@@ -191,13 +188,13 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	}
 
 	// Output as a JSON
-	bytes, merr := json.Marshal(files)
+	jsonBytes, merr := json.Marshal(files)
 	if merr != nil {
 		http.Error(w, merr.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintln(w, string(bytes))
+	_, _ = fmt.Fprintln(w, string(jsonBytes))
 }
 
 func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map[string]time.Time, map[string]int64) {
@@ -224,7 +221,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map
 		size[candidate] = *obj.Size
 	}
 	// Sort file names
-	files := []string{}
+	var files []string
 	for file := range candidates {
 		files = append(files, file)
 	}
