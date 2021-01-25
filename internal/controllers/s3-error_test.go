@@ -21,7 +21,7 @@ func TestToHTTPError(t *testing.T) {
 }
 
 func TestToHTTPNoSuchBucketError(t *testing.T) {
-	expectedCode := http.StatusNotFound
+	expectedCode := http.StatusInternalServerError
 	expectedMsg := "NoSuchBucket: 2\ncaused by: 1"
 
 	code, msg := toHTTPError(awserr.New(

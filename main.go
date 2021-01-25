@@ -13,6 +13,7 @@ import (
 	"github.com/patrickdk77/aws-s3-proxy/internal/controllers"
 	common "github.com/patrickdk77/aws-s3-proxy/internal/http"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -26,15 +27,16 @@ func main() {
 
 	httpMux := http.NewServeMux()
 
-	httpMux.Handle("/", common.WrapHandler(controllers.AwsS3))
-
-	httpMux.HandleFunc("/--version", func(w http.ResponseWriter, r *http.Request) {
+	httpMux.Handle(config.Config.MetricsPath, promhttp.Handler())
+	httpMux.HandleFunc(config.Config.HealthCheckPath, common.HealthcheckHandler)
+	httpMux.HandleFunc(config.Config.VersionPath, func(w http.ResponseWriter, r *http.Request) {
 		if len(commit) > 0 && len(date) > 0 {
-			fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
+			_, _ = fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
 			return
 		}
-		fmt.Fprintln(w, ver)
+		_, _ = fmt.Fprintln(w, ver)
 	})
+	httpMux.Handle("/", common.WrapHandler(controllers.AwsS3))
 
 	// Listen & Serve
 	addr := net.JoinHostPort(config.Config.Host, config.Config.Port)
