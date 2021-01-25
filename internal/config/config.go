@@ -41,8 +41,8 @@ type config struct { // nolint
 	CorsAllowHeaders     string        // CORS_ALLOW_HEADERS
 	CorsMaxAge           int64         // CORS_MAX_AGE
 	HealthCheckPath      string        // HEALTHCHECK_PATH
-	MetricsPath        string        // METRICS_PATH
-	VersionPath        string        // VERSION_PATH
+	MetricsPath          string        // METRICS_PATH
+	VersionPath          string        // VERSION_PATH
 	AllPagesInDir        bool          // GET_ALL_PAGES_IN_DIR
 	MaxIdleConns         int           // MAX_IDLE_CONNECTIONS
 	IdleConnTimeout      time.Duration // IDLE_CONNECTION_TIMEOUT
