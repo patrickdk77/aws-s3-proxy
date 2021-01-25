@@ -40,7 +40,9 @@ APP_HOST                  | The host name used to the listener                | 
 ACCESS_LOG                | Send access logs to /dev/stdout.                  |          | false
 STRIP_PATH                | Strip path prefix.                                |          | -
 CONTENT_ENCODING          | Compress response data if the request allows.     |          | true
-HEALTHCHECK_PATH          | If it's specified, the path always returns 200 OK |          | -
+HEALTHCHECK_PATH          | If it's specified, the path always returns 200 OK |          | /healthz
+METRICS_PATH              | prometheus statistics                             |          | /metrics
+VERSION_PATH              | version info of proxy                             |          | /version
 GET_ALL_PAGES_IN_DIR      | If true will make several calls to get all pages of destination directory | | false
 MAX_IDLE_CONNECTIONS      | Allowed number of idle connections to the S3 storage |       | 150
 IDLE_CONNECTION_TIMEOUT   | Allowed timeout to the S3 storage.                |          | 10
