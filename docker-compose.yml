@@ -2,7 +2,8 @@ version: "2.1"
 
 services:
   app:
-    image: aws-s3-proxy
+    build: .
+    #image: aws-s3-proxy
     #command: go run main.go
     ports:
       - 8080:80
