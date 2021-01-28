@@ -42,6 +42,8 @@ func defaultConfig() *config {
 		InsecureTLS:          false,
 		SPA:                  false,
 		WhiteListIPRanges:    make([]*net.IPNet, 0),
+		ContentType:          "",
+		ContentDisposition:   "",
 	}
 }
 
@@ -62,6 +64,8 @@ func TestChangeDefaults(t *testing.T) {
 	os.Setenv("INSECURE_TLS", "t")
 	os.Setenv("SPA", "TRUE")
 	os.Setenv("WHITELIST_IP_RANGES", "10.0.0.0/24,198.5.5.3")
+	os.Setenv("CONTENT_TYPE", "application/octet-stream")
+	os.Setenv("CONTENT_DISPOSITION", "attachment")
 
 	Setup()
 
@@ -81,6 +85,8 @@ func TestChangeDefaults(t *testing.T) {
 		_, subnet, _ := net.ParseCIDR(subStr)
 		expected.WhiteListIPRanges = append(expected.WhiteListIPRanges, subnet)
 	}
+	expected.ContentType = "application/octet-stream"
+	expected.ContentDisposition = "attachment"
 
 	assert.Equal(t, expected, Config)
 }

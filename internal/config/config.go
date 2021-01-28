@@ -55,6 +55,8 @@ type config struct { // nolint
 	SPA                  bool          // SPA
 	WhiteListIPRanges    []*net.IPNet  // WHITELIST_IP_RANGES is commma separated list of IP's and IP ranges. Needs parsing.
 	DebugOutput          bool          // DEBUG_OUTPUT enable debug output
+	ContentType          string        // Override default Content-Type
+	ContentDisposition   string        // Override default Content-Disposition
 }
 
 // Setup configurations with environment variables
@@ -164,6 +166,8 @@ func Setup() {
 		SPA:                  SPA,
 		WhiteListIPRanges:    whiteListIPRanges,
 		DebugOutput:          debugOutput,
+		ContentType:          os.Getenv("CONTENT_TYPE"),
+		ContentDisposition:   os.Getenv("CONTENT_DISPOSITION"),
 	}
 	// Default healthcheck endpoint
 	if Config.HealthCheckPath == "" {

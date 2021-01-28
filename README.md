@@ -50,6 +50,8 @@ DISABLE_COMPRESSION       | If true will pass encoded content through as-is.  | 
 INSECURE_TLS              | If true it will skip cert checks                  |          | false
 SPA                       | Signle Page Application - If true server will return index document content on 404 error (like `try_files $uri $uri/ /index.html;` in nginx) |          | false
 WHITELIST_IP_RANGES       | commma separated list of IPs and IP ranges.       |          | -
+CONTENT_TYPE              | Override the default Content-Type response header |          | -
+CONTENT_DISPOSITION       | Override the default Content-Disposition response header |          | -
 
 ### 2. Run the application
 
