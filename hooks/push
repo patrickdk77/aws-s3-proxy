@@ -5,57 +5,65 @@ echo "🔵 push"
 source hooks/.config
 
 # 1. push all images
-BUILD_NAME="${IMAGE_NAME//index.docker.io\/}"
+#BUILD_NAME="${IMAGE_NAME//index.docker.io\/}"
+BUILD_REPO="${DOCKER_REPO//index.docker.io\/}"
 
-for arch in ${verified_build_architectures[@]}; do
-  echo "✅ Pushing ${BUILD_NAME}-${arch}"
+tagparts=(${DOCKER_TAG//./ });
+for tag in "${tagparts[@]}"; do
+  if [ ! -v BUILD_NAME ]; then
+    BUILD_NAME="${BUILD_REPO}:${tag}"
+  else
+    BUILD_NAME="${BUILD_NAME}.${tag}"
+  fi
+
+  for arch in ${verified_build_architectures[@]}; do
+    echo "✅ Pushing ${BUILD_NAME}-${arch}"
+    echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+    echo
+    docker push ${BUILD_NAME}-${arch}
+  done
+
+  #docker image ls
+
+  # 2. build and push manifest
+  manifests=""
+
+  for arch in ${verified_build_architectures[@]}; do
+    manifests="${manifests} ${BUILD_NAME}-${arch}"
+  done
+
+  echo "✅ Creating manifest ${BUILD_NAME}"
   echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+  docker manifest create ${BUILD_NAME} $manifests
   echo
-  docker push ${BUILD_NAME}-${arch}
+
+  echo "✅ Annotating manifest"
+  echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+  for arch in ${verified_build_architectures[@]}; do
+      if [ -n "${docker_to_variant_map[${arch}]}" ]; then
+        docker manifest annotate ${BUILD_NAME} \
+          ${BUILD_NAME}-${arch} \
+          --os linux \
+          --arch ${docker_to_manifest_map[${arch}]} \
+          --variant ${docker_to_variant_map[${arch}]}
+      else
+        docker manifest annotate ${BUILD_NAME} \
+          ${BUILD_NAME}-${arch} \
+          --os linux \
+          --arch ${docker_to_manifest_map[${arch}]}
+      fi
+  done
+
+  echo "✅ Inspecting manifest ${BUILD_NAME}-${arch}"
+  echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+  docker manifest inspect ${BUILD_NAME}-${arch}
+  echo
+
+  echo "✅ Pushing manifest ${BUILD_NAME}"
+  echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+  docker manifest push --purge "${BUILD_NAME}"
+  echo
 done
-
-docker image ls
-
-# 2. build and push manifest
-#DOCKER_REPO="index.docker.io/${DOCKER_REPO}"
-manifests=""
-
-for arch in ${verified_build_architectures[@]}; do
-  manifests="${manifests} ${BUILD_NAME}-${arch}"
-done
-
-echo "✅ Creating manifest ${BUILD_NAME}"
-echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
-docker manifest create ${BUILD_NAME} \
-                            $manifests
-echo
-
-echo "✅ Annotating manifest"
-echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
-for arch in ${verified_build_architectures[@]}; do
-    if [ -n "${docker_to_variant_map[${arch}]}" ]; then
-      docker manifest annotate ${BUILD_NAME} \
-        ${BUILD_NAME}-${arch} \
-        --os linux \
-        --arch ${docker_to_manifest_map[${arch}]} \
-        --variant ${docker_to_variant_map[${arch}]}
-    else
-      docker manifest annotate ${BUILD_NAME} \
-        ${BUILD_NAME}-${arch} \
-        --os linux \
-        --arch ${docker_to_manifest_map[${arch}]}
-    fi
-done
-
-echo "✅ Inspecting manifest ${BUILD_NAME}-${arch}"
-echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
-docker manifest inspect ${BUILD_NAME}-${arch}
-echo
-
-echo "✅ Pushing manifest ${BUILD_NAME}"
-echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
-docker manifest push --purge "${BUILD_NAME}"
-echo
 
 echo
 echo "😊"
