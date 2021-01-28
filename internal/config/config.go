@@ -1,9 +1,12 @@
 package config
 
 import (
+	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -50,6 +53,8 @@ type config struct { // nolint
 	InsecureTLS          bool          // Disables TLS validation on request endpoints.
 	JwtSecretKey         string        // JWT_SECRET_KEY
 	SPA                  bool          // SPA
+	WhiteListIPRanges    []*net.IPNet  // WHITELIST_IP_RANGES is commma separated list of IP's and IP ranges. Needs parsing.
+	DebugOutput          bool          // DEBUG_OUTPUT enable debug output
 }
 
 // Setup configurations with environment variables
@@ -110,6 +115,19 @@ func Setup() {
 	if b, err := strconv.ParseBool(os.Getenv("SPA")); err == nil {
 		SPA = b
 	}
+	whiteListIPRanges := []*net.IPNet{}
+	var err error
+	if whiteListIPRangesStr := os.Getenv("WHITELIST_IP_RANGES"); len(whiteListIPRangesStr) != 0 {
+		whiteListIPRangesTemp := strings.Split(whiteListIPRangesStr, ",")
+		whiteListIPRanges, err = createIPNets(whiteListIPRangesTemp)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+	}
+	debugOutput := false
+	if b, err := strconv.ParseBool(os.Getenv("DEBUG_OUTPUT")); err == nil {
+		debugOutput = b
+	}
 	Config = &config{
 		AwsRegion:            region,
 		AwsAPIEndpoint:       os.Getenv("AWS_API_ENDPOINT"),
@@ -144,6 +162,8 @@ func Setup() {
 		InsecureTLS:          insecureTLS,
 		JwtSecretKey:         os.Getenv("JWT_SECRET_KEY"),
 		SPA:                  SPA,
+		WhiteListIPRanges:    whiteListIPRanges,
+		DebugOutput:          debugOutput,
 	}
 	// Default healthcheck endpoint
 	if Config.HealthCheckPath == "" {
@@ -176,4 +196,24 @@ func Setup() {
 	if (len(Config.CorsAllowOrigin) > 0) && (Config.CorsMaxAge > 0) {
 		log.Printf("[config] CORS enabled: %s", Config.CorsAllowOrigin)
 	}
+	// WhiteListIPRanges
+	if len(Config.WhiteListIPRanges) > 0 {
+		log.Printf("[config] WhiteListIPRanges enabled: %v", Config.WhiteListIPRanges)
+	}
+}
+
+func createIPNets(src []string) ([]*net.IPNet, error) {
+	whiteListIPRanges := make([]*net.IPNet, 0, len(src))
+	for _, whiteListIPRange := range src {
+		if !strings.Contains(whiteListIPRange, "/") {
+			// Make range from single IP
+			whiteListIPRange = fmt.Sprintf("%s/32", whiteListIPRange)
+		}
+		_, subnet, err := net.ParseCIDR(whiteListIPRange)
+		if err != nil {
+			return nil, fmt.Errorf("[config] invalid IP range '%s' in WHITELIST_IP_RANGES: %w", whiteListIPRange, err)
+		}
+		whiteListIPRanges = append(whiteListIPRanges, subnet)
+	}
+	return whiteListIPRanges, nil
 }
