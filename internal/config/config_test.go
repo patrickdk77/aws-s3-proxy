@@ -21,8 +21,8 @@ func defaultConfig() *config {
 		DirListingFormat:     "",
 		HTTPCacheControl:     "",
 		HTTPExpires:          "",
-		BasicAuthUser:        [],
-		BasicAuthPass:        [],
+		BasicAuthUser:        []string{},
+		BasicAuthPass:        []string{},
 		Port:                 "80",
 		Host:                 "",
 		AccessLog:            false,
@@ -34,16 +34,15 @@ func defaultConfig() *config {
 		CorsAllowMethods:     "",
 		CorsAllowHeaders:     "",
 		CorsMaxAge:           int64(600),
-		HealthCheckPath:      "/healthz",
-		MetricsPath:          "/metrics",
-		VersionPath:          "/version",
+		HealthCheckPath:      "",
+		MetricsPath:          "",
+		VersionPath:          "",
 		AllPagesInDir:        false,
 		MaxIdleConns:         150,
 		IdleConnTimeout:      time.Duration(10) * time.Second,
 		DisableCompression:   true,
 		InsecureTLS:          false,
 		JwtSecretKey:         "",
-		JwtUserField:         "email",
 		SPA:                  false,
 		WhiteListIPRanges:    make([]*net.IPNet, 0),
 		ContentType:          "",
@@ -65,6 +64,9 @@ func TestChangeDefaults(t *testing.T) {
 	os.Setenv("MAX_IDLE_CONNECTIONS", "0")
 	os.Setenv("IDLE_CONNECTION_TIMEOUT", "60")
 	os.Setenv("DISABLE_COMPRESSION", "FALSE")
+	os.Setenv("HEALTHCHECK_PATH", "/healthz")
+	os.Setenv("METRICS_PATH", "/metrics")
+	os.Setenv("VERSION_PATH", "/version")
 	os.Setenv("INSECURE_TLS", "t")
 	os.Setenv("SPA", "TRUE")
 	os.Setenv("WHITELIST_IP_RANGES", "10.0.0.0/24,198.5.5.3")
@@ -80,6 +82,9 @@ func TestChangeDefaults(t *testing.T) {
 	expected.CorsMaxAge = 0
 	expected.AllPagesInDir = true
 	expected.MaxIdleConns = 0
+	expected.HealthCheckPath = "/healthz"
+	expected.MetricsPath = "/metrics"
+	expected.VersionPath = "/version"
 	expected.IdleConnTimeout = time.Duration(60) * time.Second
 	expected.DisableCompression = false
 	expected.InsecureTLS = true

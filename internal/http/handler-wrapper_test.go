@@ -3,20 +3,22 @@ package http
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/malusev998/jwt-go/v4"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 const sample = "http://example.com/foo"
+var ri = &HTTPReqInfo{}
 
 func TestWithoutAuth(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
-	assert.False(t, auth(req, "user", "pass"))
+	assert.False(t, auth(req, []string{"user"}, []string{"pass"}, ri))
 }
 
 func basicAuth(username, password string) string {
@@ -31,7 +33,7 @@ func TestWithoutBasic(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
 	req.Header.Set("Authorization", basicAuth(username, password))
 
-	assert.False(t, auth(req, username, password))
+	assert.False(t, auth(req, []string{username}, []string{password}, ri))
 }
 
 func TestAuthMatch(t *testing.T) {
@@ -41,7 +43,7 @@ func TestAuthMatch(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
 	req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 
-	assert.True(t, auth(req, username, password))
+	assert.True(t, auth(req, []string{username}, []string{password}, ri))
 }
 
 func TestWithValidJWT(t *testing.T) {
@@ -57,7 +59,7 @@ func TestWithValidJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
 
-	assert.True(t, isValidJwt(req))
+	assert.True(t, isValidJwt(req, ri))
 }
 
 func TestWithoutValidJWT(t *testing.T) {
@@ -73,10 +75,11 @@ func TestWithoutValidJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
 
-	assert.False(t, isValidJwt(req))
+	assert.False(t, isValidJwt(req, ri))
 }
 
 func TestWithValidRemoteIPXForwardedFor(t *testing.T) {
+	config.Config.ForwardedFor = "X-FORWARDED-FOR"
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
 	req.Header.Set("X-FORWARDED-FOR", "10.2.2.2")
 
@@ -87,7 +90,10 @@ func TestWithValidRemoteIP(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
 	req.RemoteAddr = "10.0.0.12:64564"
 
-	assert.Equal(t, getIP(req), "10.0.0.12")
+	assert.Equal(t, getIP(req), "10.0.0.12:64564")
+	clientIP,clientPort,_ := net.SplitHostPort(getIP(req))
+	assert.Equal(t,clientIP, "10.0.0.12")
+	assert.Equal(t,clientPort, "64564")
 }
 
 func TestHeaderWithValue(t *testing.T) {
