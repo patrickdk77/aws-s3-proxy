@@ -15,16 +15,18 @@ import (
 )
 
 type HTTPReqInfo struct {
-	stime time.Time
-	method string
-	proto string
-	uri string
-	ip string
-	port string
-	status int
-	size int64
-	referer string
-	userAgent string
+	stime        time.Time
+	method       string
+	proto        string
+	uri          string
+	ip           string
+	port         string
+	status       int
+	size         int64
+	referer      string
+	userAgent    string
+	user         string
+	host         string
 }
 
 // WrapHandler wraps every handlers
@@ -49,6 +51,8 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			status: 0,
 			referer: r.Header.Get("Referer"),
 			userAgent: r.Header.Get("User-Agent"),
+			host: r.Host,
+			user: "-",
 		}
 		
 		// WhiteListIPs
@@ -81,7 +85,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 		}
 		// BasicAuth
 		if (len(c.BasicAuthUser) > 0) && (len(c.BasicAuthPass) > 0) &&
-			!auth(r, c.BasicAuthUser, c.BasicAuthPass) {
+			!auth(r, c.BasicAuthUser, c.BasicAuthPass, ri) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			ri.status=http.StatusUnauthorized
@@ -89,7 +93,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			return
 		}
 		// Auth with JWT
-		if len(c.JwtSecretKey) > 0 && !isValidJwt(r) {
+		if len(c.JwtSecretKey) > 0 && !isValidJwt(r, ri) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			ri.status=http.StatusUnauthorized
@@ -142,9 +146,14 @@ func getIP(r *http.Request) string {
 	return retIP
 }
 
-func auth(r *http.Request, authUser, authPass string) bool {
+func auth(r *http.Request, authUser, authPass []string, ri *HTTPReqInfo) bool {
 	if username, password, ok := r.BasicAuth(); ok {
-		return username == authUser && password == authPass
+		for i := 0; i < len(authUser); i++ {
+			if username == authUser[i] && password == authPass[i] {
+				ri.user = authUser[i]
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -168,7 +177,7 @@ func splitCsvLine(data string) []string {
 	return parsed
 }
 
-func isValidJwt(r *http.Request) bool {
+func isValidJwt(r *http.Request, ri *HTTPReqInfo) bool {
 	reqToken := r.Header.Get("Authorization")
 	splitToken := strings.Split(reqToken, "Bearer")
 	if len(splitToken) != 2 {
@@ -180,7 +189,13 @@ func isValidJwt(r *http.Request) bool {
 		secretKey := config.Config.JwtSecretKey
 		return []byte(secretKey), nil
 	})
-	return err == nil && token.Valid
+	if err != nil {
+		return false
+	}
+	if token.Valid {
+		ri.user = "jwt"
+	}
+	return token.Valid
 }
 
 func accessLog(ri *HTTPReqInfo) {
@@ -191,8 +206,12 @@ func accessLog(ri *HTTPReqInfo) {
 		if ri.userAgent == "" {
 			ri.userAgent = "-"
 		}
-		config.AccessLog.Printf("%s - - [%s] \"%s %s %s\" %d %d \"%s\" \"%s\" %.3f",
-			ri.ip, ri.stime.Format("2006-01-02 15:04:05 -0000"),
+		if ri.host == "" {
+			ri.host = "-"
+		}
+		config.AccessLog.Printf("%s %s - %s [%s] \"%s %s %s\" %d %d \"%s\" \"%s\" %.3f",
+			ri.host, ri.ip, ri.user,
+			ri.stime.Format("2006-01-02 15:04:05 -0000"),
 			ri.method, ri.uri, ri.proto,
 			ri.status, ri.size, ri.referer, ri.userAgent,
 			time.Since(ri.stime).Seconds())

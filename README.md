@@ -27,8 +27,8 @@ DIRECTORY_LISTINGS_FORMAT | Configures directory listing to be `html` (spider pa
 DIRECTORY_LISTINGS_CHECK_INDEX | Check for `INDEX_DOCUMENT` in the folder before listing files |       | false
 HTTP_CACHE_CONTROL        | Overrides S3's HTTP `Cache-Control` header.       |          | S3 Object metadata
 HTTP_EXPIRES              | Overrides S3's HTTP `Expires` header.             |          | S3 Object metadata
-BASIC_AUTH_USER           | User for basic authentication.                    |          | -
-BASIC_AUTH_PASS           | Password for basic authentication.                |          | -
+BASIC_AUTH_USER           | User for basic authentication. Space seperated list |          | -
+BASIC_AUTH_PASS           | Password for basic authentication. Space seperated list |          | -
 SSL_CERT_PATH             | TLS: cert.pem file path.                          |          | -
 SSL_KEY_PATH              | TLS: key.pem file path.                           |          | -
 CORS_ALLOW_ORIGIN         | CORS: a URI that may access the resource.         |          | -
@@ -49,6 +49,7 @@ MAX_IDLE_CONNECTIONS      | Allowed number of idle connections to the S3 storage
 IDLE_CONNECTION_TIMEOUT   | Allowed timeout to the S3 storage.                |          | 10
 DISABLE_COMPRESSION       | If true will pass encoded content through as-is.  |          | true
 INSECURE_TLS              | If true it will skip cert checks                  |          | false
+JWT_SECRET_KEY            | JSON Web Token secret key to athenticate requests |          | -
 SPA                       | Signle Page Application - If true server will return index document content on 404 error (like `try_files $uri $uri/ /index.html;` in nginx) |          | false
 WHITELIST_IP_RANGES       | commma separated list of IPs and IP ranges.       |          | -
 CONTENT_TYPE              | Override the default Content-Type response header |          | -

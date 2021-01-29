@@ -31,8 +31,8 @@ type config struct { // nolint
 	DirListingCheckIndex bool          // DIRECTORY_LISTINGS_CHECK_INDEX
 	HTTPCacheControl     string        // HTTP_CACHE_CONTROL (max-age=86400, no-cache ...)
 	HTTPExpires          string        // HTTP_EXPIRES (Thu, 01 Dec 1994 16:00:00 GMT ...)
-	BasicAuthUser        string        // BASIC_AUTH_USER
-	BasicAuthPass        string        // BASIC_AUTH_PASS
+	BasicAuthUser        []string      // BASIC_AUTH_USER
+	BasicAuthPass        []string      // BASIC_AUTH_PASS
 	Port                 string        // APP_PORT
 	Host                 string        // APP_HOST
 	AccessLog            bool          // ACCESS_LOG
@@ -54,6 +54,7 @@ type config struct { // nolint
 	DisableCompression   bool          // DISABLE_COMPRESSION
 	InsecureTLS          bool          // Disables TLS validation on request endpoints.
 	JwtSecretKey         string        // JWT_SECRET_KEY
+        JwtUserField         string        // JWT_USER_FIELD
 	SPA                  bool          // SPA
 	WhiteListIPRanges    []*net.IPNet  // WHITELIST_IP_RANGES is commma separated list of IP's and IP ranges. Needs parsing.
 	ContentType          string        // Override default Content-Type
@@ -127,6 +128,17 @@ func Setup() {
 			log.Fatalf("%v", err)
 		}
 	}
+        usernames := []string{}
+	username := os.Getenv("BASIC_AUTH_USER")
+	if username != "" {
+		usernames = strings.Split(username, " ")
+	}
+        passwords := []string{}
+	password := os.Getenv("BASIC_AUTH_PASS")
+	if password != "" {
+		passwords = strings.Split(password, " ")
+	}
+
 	Config = &config{
 		AwsRegion:            region,
 		AwsAPIEndpoint:       os.Getenv("AWS_API_ENDPOINT"),
@@ -138,8 +150,8 @@ func Setup() {
 		DirListingFormat:     os.Getenv("DIRECTORY_LISTINGS_FORMAT"),
 		HTTPCacheControl:     os.Getenv("HTTP_CACHE_CONTROL"),
 		HTTPExpires:          os.Getenv("HTTP_EXPIRES"),
-		BasicAuthUser:        os.Getenv("BASIC_AUTH_USER"),
-		BasicAuthPass:        os.Getenv("BASIC_AUTH_PASS"),
+		BasicAuthUser:        usernames,
+		BasicAuthPass:        passwords,
 		Port:                 port,
 		Host:                 os.Getenv("APP_HOST"),
 		AccessLog:            accessLog,
