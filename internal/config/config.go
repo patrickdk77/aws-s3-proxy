@@ -166,20 +166,6 @@ func Setup() {
 		ContentType:          os.Getenv("CONTENT_TYPE"),
 		ContentDisposition:   os.Getenv("CONTENT_DISPOSITION"),
 	}
-	// Default healthcheck endpoint
-	if Config.HealthCheckPath == "" {
-		Config.HealthCheckPath = "/healthz"
-	}
-
-	// Default metrics endpoint
-	if Config.MetricsPath == "" {
-		Config.MetricsPath = "/metrics"
-	}
-
-	// Default version endpoint
-	if Config.VersionPath == "" {
-		Config.VersionPath = "/version"
-	}
 
 	// Proxy
 	log.Printf("[config] Proxy to %v", Config.S3Bucket)

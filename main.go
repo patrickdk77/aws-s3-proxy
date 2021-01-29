@@ -27,15 +27,21 @@ func main() {
 
 	httpMux := http.NewServeMux()
 
-	httpMux.Handle(config.Config.MetricsPath, promhttp.Handler())
-	httpMux.HandleFunc(config.Config.HealthCheckPath, common.HealthcheckHandler)
-	httpMux.HandleFunc(config.Config.VersionPath, func(w http.ResponseWriter, r *http.Request) {
-		if len(commit) > 0 && len(date) > 0 {
-			_, _ = fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
-			return
-		}
-		_, _ = fmt.Fprintln(w, ver)
-	})
+	if len(config.Config.MetricsPath) > 1 {
+		httpMux.Handle(config.Config.MetricsPath, promhttp.Handler())
+	}
+	if len(config.Config.HealthCheckPath) > 1 {
+		httpMux.HandleFunc(config.Config.HealthCheckPath, common.HealthcheckHandler)
+	}
+	if len(config.Config.VersionPath) > 1 {
+		httpMux.HandleFunc(config.Config.VersionPath, func(w http.ResponseWriter, r *http.Request) {
+			if len(commit) > 0 && len(date) > 0 {
+				_, _ = fmt.Fprintf(w, "%s-%s (built at %s)\n", ver, commit, date)
+				return
+			}
+			_, _ = fmt.Fprintln(w, ver)
+		})
+	}
 	httpMux.Handle("/", common.WrapHandler(controllers.AwsS3))
 
 	// Listen & Serve
