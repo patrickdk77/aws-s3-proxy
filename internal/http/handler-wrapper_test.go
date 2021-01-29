@@ -14,7 +14,7 @@ import (
 )
 
 const sample = "http://example.com/foo"
-var ri = &HTTPReqInfo{}
+var ri = &ReqInfo{}
 
 func TestWithoutAuth(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, sample, nil)

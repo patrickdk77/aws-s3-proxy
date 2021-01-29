@@ -24,7 +24,10 @@ func awsSession(region *string) *session.Session {
 }
 
 func configureClient() *http.Client {
-	tlsCfg := &tls.Config{}
+	tlsCfg := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		MaxVersion: 0,
+	}
 	if config.Config.InsecureTLS {
 		tlsCfg.InsecureSkipVerify = true
 	}

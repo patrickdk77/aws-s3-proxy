@@ -14,7 +14,7 @@ import (
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
 
-type HTTPReqInfo struct {
+type ReqInfo struct {
 	stime        time.Time
 	method       string
 	proto        string
@@ -40,7 +40,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			clientIP,clientPort,_ = net.SplitHostPort(r.RemoteAddr)
 		}
 		
-		ri := &HTTPReqInfo{
+		ri := &ReqInfo{
 			stime: time.Now(),
 			method: r.Method,
 			uri: r.URL.String(),
@@ -146,7 +146,7 @@ func getIP(r *http.Request) string {
 	return retIP
 }
 
-func auth(r *http.Request, authUser, authPass []string, ri *HTTPReqInfo) bool {
+func auth(r *http.Request, authUser, authPass []string, ri *ReqInfo) bool {
 	if username, password, ok := r.BasicAuth(); ok {
 		for i := 0; i < len(authUser); i++ {
 			if username == authUser[i] && password == authPass[i] {
@@ -169,7 +169,7 @@ func header(r *http.Request, key string) (string, bool) {
 }
 
 func splitCsvLine(data string) []string {
-	splitted := strings.SplitN(data, ",", -1)
+	splitted := strings.Split(data, ",")
 	parsed := make([]string, len(splitted))
 	for i, val := range splitted {
 		parsed[i] = strings.TrimSpace(val)
@@ -177,7 +177,7 @@ func splitCsvLine(data string) []string {
 	return parsed
 }
 
-func isValidJwt(r *http.Request, ri *HTTPReqInfo) bool {
+func isValidJwt(r *http.Request, ri *ReqInfo) bool {
 	reqToken := r.Header.Get("Authorization")
 	splitToken := strings.Split(reqToken, "Bearer")
 	if len(splitToken) != 2 {
@@ -198,7 +198,7 @@ func isValidJwt(r *http.Request, ri *HTTPReqInfo) bool {
 	return token.Valid
 }
 
-func accessLog(ri *HTTPReqInfo) {
+func accessLog(ri *ReqInfo) {
 	if config.Config.AccessLog {
 		if ri.referer == "" {
 			ri.referer = "-"

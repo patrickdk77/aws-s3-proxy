@@ -33,12 +33,12 @@ func executeHealthCheck(_ context.Context, awsClient service.AWS) error {
 	_, err := awsClient.S3get(config.Config.S3Bucket, config.Config.HealthCheckPath, nil)
 
 	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.HealthcheckSource)
-	//if file exists, return ok
+	// if file exists, return ok
 	if err == nil {
 		return nil
 	}
-	//we have some kind of error. Normally we accept the 404 key not found because it means that we are able
-	//to reach the endpoint without any issue.
+	// we have some kind of error. Normally we accept the 404 key not found because it means that we are able
+	// to reach the endpoint without any issue.
 	if aerr, ok := err.(awserr.Error); ok {
 		if aerr.Code() == s3.ErrCodeNoSuchKey {
 			return nil
@@ -61,13 +61,13 @@ func HealthcheckHandler(w http.ResponseWriter, req *http.Request) {
 	} else {
 		httpRes.S3Bucket.Error = err.Error()
 	}
-	//marshal response
+	// marshal response
 	body, err := json.Marshal(httpRes)
 	if err != nil {
 		body = []byte(`{"error":"cannot marshal response"}`)
 	}
 
-	//if there was an error on unmarshaling or the end point is not healthy, then return an appropriate status code.
+	// if there was an error on unmarshaling or the end point is not healthy, then return an appropriate status code.
 	statusCode := http.StatusOK
 	if err != nil || !httpRes.S3Bucket.Healthy {
 		statusCode = http.StatusInternalServerError
@@ -75,6 +75,6 @@ func HealthcheckHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(statusCode)
 	metrics.HealthCheck.WithLabelValues(strconv.Itoa(statusCode)).Inc()
 
-	//write final result
+	// write final result
 	_, _ = w.Write(body)
 }
