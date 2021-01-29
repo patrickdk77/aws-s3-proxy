@@ -13,6 +13,7 @@ import (
 // Config represents its configurations
 var (
 	Config *config
+	AccessLog *log.Logger
 )
 
 func init() {
@@ -35,6 +36,7 @@ type config struct { // nolint
 	Port                 string        // APP_PORT
 	Host                 string        // APP_HOST
 	AccessLog            bool          // ACCESS_LOG
+	ForwardedFor         string        // FORWARDED_FOR
 	SslCert              string        // SSL_CERT_PATH
 	SslKey               string        // SSL_KEY_PATH
 	StripPath            string        // STRIP_PATH
@@ -54,7 +56,6 @@ type config struct { // nolint
 	JwtSecretKey         string        // JWT_SECRET_KEY
 	SPA                  bool          // SPA
 	WhiteListIPRanges    []*net.IPNet  // WHITELIST_IP_RANGES is commma separated list of IP's and IP ranges. Needs parsing.
-	DebugOutput          bool          // DEBUG_OUTPUT enable debug output
 	ContentType          string        // Override default Content-Type
 	ContentDisposition   string        // Override default Content-Disposition
 }
@@ -126,10 +127,6 @@ func Setup() {
 			log.Fatalf("%v", err)
 		}
 	}
-	debugOutput := false
-	if b, err := strconv.ParseBool(os.Getenv("DEBUG_OUTPUT")); err == nil {
-		debugOutput = b
-	}
 	Config = &config{
 		AwsRegion:            region,
 		AwsAPIEndpoint:       os.Getenv("AWS_API_ENDPOINT"),
@@ -146,6 +143,7 @@ func Setup() {
 		Port:                 port,
 		Host:                 os.Getenv("APP_HOST"),
 		AccessLog:            accessLog,
+		ForwardedFor:         os.Getenv("FORWARDED_FOR"),
 		SslCert:              os.Getenv("SSL_CERT_PATH"),
 		SslKey:               os.Getenv("SSL_KEY_PATH"),
 		StripPath:            os.Getenv("STRIP_PATH"),
@@ -165,7 +163,6 @@ func Setup() {
 		JwtSecretKey:         os.Getenv("JWT_SECRET_KEY"),
 		SPA:                  SPA,
 		WhiteListIPRanges:    whiteListIPRanges,
-		DebugOutput:          debugOutput,
 		ContentType:          os.Getenv("CONTENT_TYPE"),
 		ContentDisposition:   os.Getenv("CONTENT_DISPOSITION"),
 	}
@@ -203,6 +200,9 @@ func Setup() {
 	// WhiteListIPRanges
 	if len(Config.WhiteListIPRanges) > 0 {
 		log.Printf("[config] WhiteListIPRanges enabled: %v", Config.WhiteListIPRanges)
+	}
+	if Config.AccessLog {
+		AccessLog = log.New(os.Stdout, "",0)
 	}
 }
 

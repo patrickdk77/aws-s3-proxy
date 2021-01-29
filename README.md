@@ -38,6 +38,7 @@ CORS_MAX_AGE              | CORS: Maximum number of seconds the results of a pre
 APP_PORT                  | The port number to be assigned for listening.     |          | 80
 APP_HOST                  | The host name used to the listener                |          | Listens on all available unicast and anycast IP addresses of the local system.
 ACCESS_LOG                | Send access logs to /dev/stdout.                  |          | false
+FORWARDED_FOR             | Header name to use to parse proxied ip address from |          | -
 STRIP_PATH                | Strip path prefix.                                |          | -
 CONTENT_ENCODING          | Compress response data if the request allows.     |          | true
 HEALTHCHECK_PATH          | If it's specified, the path always returns 200 OK |          | /healthz

@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -15,20 +14,45 @@ import (
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
 
+type HTTPReqInfo struct {
+	stime time.Time
+	method string
+	proto string
+	uri string
+	ip string
+	port string
+	status int
+	size int64
+	referer string
+	userAgent string
+}
+
 // WrapHandler wraps every handlers
 func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c := config.Config
 
-		if c.DebugOutput {
-			log.Printf("[debug]: URI requested %s", r.RequestURI)
+		addr := getIP(r)
+		clientIP,clientPort,err := net.SplitHostPort(addr)
+		if err != nil {
+			clientIP,clientPort,_ = net.SplitHostPort(r.RemoteAddr)
 		}
+		
+		ri := &HTTPReqInfo{
+			stime: time.Now(),
+			method: r.Method,
+			uri: r.URL.String(),
+			proto: r.Proto,
+			ip: clientIP,
+			port: clientPort,
+			size: 0,
+			status: 0,
+			referer: r.Header.Get("Referer"),
+			userAgent: r.Header.Get("User-Agent"),
+		}
+		
 		// WhiteListIPs
 		if len(c.WhiteListIPRanges) > 0 {
-			clientIP := getIP(r)
-			if c.DebugOutput {
-				log.Printf("[debug]: Client IP: %s", clientIP)
-			}
 			found := false
 			for _, whiteListIPRange := range c.WhiteListIPRanges {
 				ip := net.ParseIP(clientIP)
@@ -39,6 +63,8 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			}
 			if !found {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				ri.status=http.StatusUnauthorized
+				accessLog(ri)
 				return
 			}
 		}
@@ -58,18 +84,17 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			!auth(r, c.BasicAuthUser, c.BasicAuthPass) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			ri.status=http.StatusUnauthorized
+			accessLog(ri)
 			return
 		}
 		// Auth with JWT
 		if len(c.JwtSecretKey) > 0 && !isValidJwt(r) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			ri.status=http.StatusUnauthorized
+			accessLog(ri)
 			return
-		}
-		proc := time.Now()
-		addr := r.RemoteAddr
-		if ip, found := header(r, "X-Forwarded-For"); found {
-			addr = ip
 		}
 		// Content-Encoding
 		ioWriter := w.(io.Writer)
@@ -95,27 +120,24 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 		writer := &custom{Writer: ioWriter, ResponseWriter: w, status: http.StatusOK}
 		handler(writer, r)
 
-		// AccessLog
-		if c.AccessLog {
-			log.Printf("[%s] %.3f %d %s %s",
-				addr, time.Since(proc).Seconds(),
-				writer.status, r.Method, r.URL)
-		}
+		ri.status = writer.status
+		ri.size = writer.Written
+		accessLog(ri)
 	})
 }
 
 // getIP gets a requests IP address by reading off the forwarded-for
 // header (for proxies) and falls back to use the remote address.
 func getIP(r *http.Request) string {
-	forwarded := r.Header.Get("X-FORWARDED-FOR")
 	retIP := r.RemoteAddr
-	if forwarded != "" {
-		retIP = forwarded
-	}
-	//Lets remove port - if present
-	slices := strings.Split(retIP, ":")
-	if len(slices) > 1 {
-		retIP = strings.Join(slices[:len(slices)-1], ":")
+	if len(config.Config.ForwardedFor)>0 {
+		forwarded := r.Header.Get(config.Config.ForwardedFor)
+		for _, address := range strings.Split(forwarded, ",") {
+			address = strings.TrimSpace(address)
+			if address != "" {
+				return address
+			}
+		}
 	}
 	return retIP
 }
@@ -160,3 +182,21 @@ func isValidJwt(r *http.Request) bool {
 	})
 	return err == nil && token.Valid
 }
+
+func accessLog(ri *HTTPReqInfo) {
+	if config.Config.AccessLog {
+		if ri.referer == "" {
+			ri.referer = "-"
+		}
+		if ri.userAgent == "" {
+			ri.userAgent = "-"
+		}
+		config.AccessLog.Printf("%s - - [%s] \"%s %s %s\" %d %d \"%s\" \"%s\" %.3f",
+			ri.ip, ri.stime.Format("2006-01-02 15:04:05 -0000"),
+			ri.method, ri.uri, ri.proto,
+			ri.status, ri.size, ri.referer, ri.userAgent,
+			time.Since(ri.stime).Seconds())
+	}
+}
+
+	
