@@ -29,5 +29,5 @@ test:
 build:
 	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \
-			supinf/go-gox:1.11 --osarch "linux/amd64 darwin/amd64 windows/amd64 linux/arm64 linux/arm" \
+			supinf/go-gox:1.11 --osarch "linux/amd64 darwin/amd64 windows/amd64" \
 			-ldflags "-s -w" -output "dist/{{.OS}}_{{.Arch}}"

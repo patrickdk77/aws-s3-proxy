@@ -50,10 +50,13 @@ IDLE_CONNECTION_TIMEOUT   | Allowed timeout to the S3 storage.                | 
 DISABLE_COMPRESSION       | If true will pass encoded content through as-is.  |          | true
 INSECURE_TLS              | If true it will skip cert checks                  |          | false
 JWT_SECRET_KEY            | JSON Web Token secret key to athenticate requests |          | -
+JWT_USER_FIELD            | JSON Web Token field to put in username for logs  |          | -
+JWT_HEADER                | JSON Web Token header to use, instead of Authorization, aka Cf-Access-Jwt-Assertion |          | -
 SPA                       | Signle Page Application - If true server will return index document content on 404 error (like `try_files $uri $uri/ /index.html;` in nginx) |          | false
 WHITELIST_IP_RANGES       | commma separated list of IPs and IP ranges.       |          | -
 CONTENT_TYPE              | Override the default Content-Type response header |          | -
 CONTENT_DISPOSITION       | Override the default Content-Disposition response header |          | -
+USERNAME_HEADER           | Username Header name, for cloudflare Cf-Access-Authenticated-User-Email |          | -
 
 ### 2. Run the application
 

@@ -83,6 +83,9 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			w.Header().Set("Access-Control-Allow-Headers", c.CorsAllowHeaders)
 			w.Header().Set("Access-Control-Max-Age", strconv.FormatInt(c.CorsMaxAge, 10))
 		}
+		if len(c.UsernameHeader) > 0 && len(r.Header.Get(c.UsernameHeader)) > 0 {
+			ri.user = r.Header.Get(c.UsernameHeader)
+		}
 		// BasicAuth
 		if (len(c.BasicAuthUser) > 0) && (len(c.BasicAuthPass) > 0) &&
 			!auth(r, c.BasicAuthUser, c.BasicAuthPass, ri) {
@@ -93,7 +96,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			return
 		}
 		// Auth with JWT
-		if len(c.JwtSecretKey) > 0 && !isValidJwt(r, ri) {
+		if (len(c.JwtUserField) > 0 || len(c.JwtSecretKey) > 0) && !isValidJwt(r, ri) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			ri.status=http.StatusUnauthorized
@@ -178,22 +181,37 @@ func splitCsvLine(data string) []string {
 }
 
 func isValidJwt(r *http.Request, ri *ReqInfo) bool {
-	reqToken := r.Header.Get("Authorization")
-	splitToken := strings.Split(reqToken, "Bearer")
-	if len(splitToken) != 2 {
-		// Error: Bearer token not in proper format
-		return false
+	value := false
+	if len(config.Config.JwtSecretKey) == 0 {
+		value = true
 	}
-	reqToken = strings.TrimSpace(splitToken[1])
+	reqToken := r.Header.Get("Authorization")
+	if len(config.Config.JwtHeader) > 0 {
+		reqToken = r.Header.Get(config.Config.JwtHeader)
+	} else {
+		splitToken := strings.Split(reqToken, "Bearer")
+		if len(splitToken) != 2 {
+			// Error: Bearer token not in proper format
+			return value
+		}
+		reqToken = strings.TrimSpace(splitToken[1])
+	}
+	if len(reqToken) < 1 {
+		return value
+	}
 	token, err := jwt.Parse(reqToken, func(t *jwt.Token) (interface{}, error) {
 		secretKey := config.Config.JwtSecretKey
 		return []byte(secretKey), nil
 	})
+	claims := token.Claims.(jwt.MapClaims)
+	if len(claims[config.Config.JwtUserField].(string)) > 0 {
+		ri.user = claims[config.Config.JwtUserField].(string)
+	}
+	if value {
+		return true
+	}
 	if err != nil {
 		return false
-	}
-	if token.Valid {
-		ri.user = "jwt"
 	}
 	return token.Valid
 }

@@ -55,10 +55,12 @@ type config struct { // nolint
 	InsecureTLS          bool          // Disables TLS validation on request endpoints.
 	JwtSecretKey         string        // JWT_SECRET_KEY
         JwtUserField         string        // JWT_USER_FIELD
+        JwtHeader            string        // JWT_HEADER
 	SPA                  bool          // SPA
 	WhiteListIPRanges    []*net.IPNet  // WHITELIST_IP_RANGES is commma separated list of IP's and IP ranges. Needs parsing.
 	ContentType          string        // Override default Content-Type
 	ContentDisposition   string        // Override default Content-Disposition
+	UsernameHeader       string        // Username Header Cf-Access-Authenticated-User-Email
 }
 
 // Setup configurations with environment variables
@@ -173,10 +175,13 @@ func Setup() {
 		DisableCompression:   disableCompression,
 		InsecureTLS:          insecureTLS,
 		JwtSecretKey:         os.Getenv("JWT_SECRET_KEY"),
+		JwtUserField:         os.Getenv("JWT_USER_FIELD"),
+		JwtHeader:            os.Getenv("JWT_HEADER"),
 		SPA:                  SPA,
 		WhiteListIPRanges:    whiteListIPRanges,
 		ContentType:          os.Getenv("CONTENT_TYPE"),
 		ContentDisposition:   os.Getenv("CONTENT_DISPOSITION"),
+		UsernameHeader:       os.Getenv("USERNAME_HEADER"),
 	}
 
 	// Proxy

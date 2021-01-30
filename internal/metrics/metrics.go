@@ -52,5 +52,4 @@ func UpdateS3Reads(err error, action, source string) {
 		UnknownS3Error,
 		source,
 	).Inc()
-	return
 }
