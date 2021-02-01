@@ -35,9 +35,17 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 		c := config.Config
 
 		addr := getIP(r)
+		rawIP,rawPort,_ := net.SplitHostPort(r.RemoteAddr)
 		clientIP,clientPort,err := net.SplitHostPort(addr)
 		if err != nil {
-			clientIP,clientPort,_ = net.SplitHostPort(r.RemoteAddr)
+			clientIP,clientPort,err = net.SplitHostPort(addr)
+			if err != nil {
+				clientIP,clientPort,err = net.SplitHostPort(net.JoinHostPort(addr,rawPort))
+				if err != nil {
+					clientIP=rawIP
+					clientPort=rawPort
+				}
+			}
 		}
 		
 		ri := &ReqInfo{
