@@ -225,7 +225,7 @@ func isValidJwt(r *http.Request, ri *ReqInfo) bool {
 }
 
 func accessLog(ri *ReqInfo) {
-	if config.Config.AccessLog {
+	if config.Config.AccessLog && config.Config.HealthCheckPath != ri.uri {
 		if ri.referer == "" {
 			ri.referer = "-"
 		}
@@ -243,5 +243,3 @@ func accessLog(ri *ReqInfo) {
 			time.Since(ri.stime).Seconds())
 	}
 }
-
-	

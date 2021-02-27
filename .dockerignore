@@ -1,0 +1,12 @@
+Dockerfile
+package.json
+README.md
+LICENSE
+.dockerignore
+.git
+app
+dist/
+hooks
+docker-compose.yml
+docker-compose.override.yml
+

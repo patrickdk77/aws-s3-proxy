@@ -19,16 +19,20 @@ RUN go mod download \
  && go mod verify \
  && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
-    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' \
-    -o /app
+    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o /health ./healthcheck \
+ && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
+    -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
+    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o /app
 
 FROM alpine:3.12 AS libs
 RUN apk --no-cache add ca-certificates
 
 FROM scratch
 COPY --from=libs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /health /health
 COPY --from=builder /app /aws-s3-proxy
 ENTRYPOINT ["/aws-s3-proxy"]
+HEALTHCHECK --interval=5s --timeout=1s --start-period=5s --retries=3 CMD [ "/health" ]
 
 ARG BUILD_VERSION
 ARG BUILD_DATE

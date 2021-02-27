@@ -42,6 +42,7 @@ FORWARDED_FOR             | Header name to use to parse proxied ip address from 
 STRIP_PATH                | Strip path prefix.                                |          | -
 CONTENT_ENCODING          | Compress response data if the request allows.     |          | true
 HEALTHCHECK_PATH          | If it's specified, the path always returns 200 OK  /healthz |          | -
+HEALTHCHECKER_PATH        | Used by docker healthcheck script, if different from HEALTHCHECK_PATH |          | -
 METRICS_PATH              | prometheus statistics /metrics                    |          | -
 VERSION_PATH              | version info of proxy /version                    |          | -
 GET_ALL_PAGES_IN_DIR      | If true will make several calls to get all pages of destination directory | | false
