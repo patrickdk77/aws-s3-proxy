@@ -5,7 +5,7 @@ all: build
 deps:
 	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \
-			golang:1.15-alpine3.12 sh -c 'apk --no-cache add git && go mod vendor'
+			golang:1.16-alpine3.12 sh -c 'apk --no-cache add git && go mod vendor'
 
 up:
 	@docker-compose up -d
