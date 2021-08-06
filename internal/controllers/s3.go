@@ -176,17 +176,17 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 		http.Error(w, message, code)
 		return
 	}
-	files, updatedAt, size := convertToMaps(result, prefix)
+	files := convertToMaps(result, prefix)
 
 	// Output as a HTML
 	if strings.EqualFold(config.Config.DirListingFormat, "html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprintln(w, toHTML(files, updatedAt))
+		_, _ = fmt.Fprintln(w, toHTML(files))
 		return
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "apache") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintln(w, toApache(prefix, files, updatedAt, size))
+		fmt.Fprintln(w, toApache(prefix, files))
 		return
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "shtml") {
@@ -205,10 +205,8 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	_, _ = fmt.Fprintln(w, string(jsonBytes))
 }
 
-func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map[string]time.Time, map[string]int64) {
-	candidates := map[string]bool{}
-	updatedAt := map[string]time.Time{}
-	size := map[string]int64{}
+func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) (s3objects) {
+	var candidates s3objects
 
 	// Prefixes
 	for _, obj := range s3output.CommonPrefixes {
@@ -216,7 +214,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map
 		if len(candidate) == 0 {
 			continue
 		}
-		candidates[candidate] = true
+		candidates = append(candidates, s3item{candidate, -1, time.Time{}})
 	}
 	// Contents
 	for _, obj := range s3output.Contents {
@@ -224,57 +222,51 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) ([]string, map
 		if len(candidate) == 0 {
 			continue
 		}
-		candidates[candidate] = true
-		updatedAt[candidate] = *obj.LastModified
-		size[candidate] = *obj.Size
+		candidates = append(candidates, s3item{candidate, *obj.Size, *obj.LastModified})
 	}
-	// Sort file names
-	var files []string
-	for file := range candidates {
-		files = append(files, file)
-	}
-	sort.Sort(s3objects(files))
+	// Sort
+	sort.Sort(s3objects(candidates))
 
-	return files, updatedAt, size
+	return candidates
 }
 
-func toHTML(files []string, updatedAt map[string]time.Time) string {
+func toHTML(files s3objects) string {
 	html := "<!DOCTYPE html><html><body><ul>"
 	for _, file := range files {
-		html += "<li><a href=\"" + file + "\">" + file + "</a>"
-		if timestamp, ok := updatedAt[file]; ok {
-			html += " " + timestamp.Format(time.RFC3339)
+		html += "<li><a href=\"" + file.file + "\">" + file.file + "</a>"
+		if !file.updatedAt.IsZero() {
+			html += " " + file.updatedAt.Format(time.RFC3339)
 		}
 		html += "</li>"
 	}
 	return html + "</ul></body></html>"
 }
 
-func toApache(prefix string, files []string, updatedAt map[string]time.Time, size map[string]int64) string {
+func toApache(prefix string, files s3objects) string {
 	html := "<!DOCTYPE html><html><head><title>Index of " + prefix + "</title></head>"
 	html += "<body><h1>Index of " + prefix + "</h1><pre><table><tr><th>Name</th><th>Last Modified</th><th>Size</th></tr>"
 	for _, file := range files {
-		html += "<tr><td><a href=\"" + file + "\">" + file + "</a></td>"
-		if timestamp, ok := updatedAt[file]; ok {
-			html += "<td>" + timestamp.Format(time.RFC3339) + "</td>"
+		html += "<tr><td><a href=\"" + file.file + "\">" + file.file + "</a></td>"
+		if !file.updatedAt.IsZero()  {
+			html += "<td>" + file.updatedAt.Format(time.RFC3339) + "</td>"
 		} else {
 			html += "<td>-</td>"
 		}
-		if fileSize, ok := size[file]; ok {
+		if file.size >=0 {
 			fsizeMod := ""
-		        if fileSize > 2000 {
+		        if file.size > 2000 {
 		        	fsizeMod="k"
-		        	fileSize /= 1024
+		        	file.size /= 1024
 			}
-		        if fileSize > 2000 {
+		        if file.size > 2000 {
 		        	fsizeMod="M"
-		        	fileSize /= 1024
+		        	file.size /= 1024
 			}
-		        if fileSize > 2000 {
+		        if file.size > 2000 {
 		        	fsizeMod="G"
-		        	fileSize /= 1024
+		        	file.size /= 1024
 			}
-			html += "<td>" + strconv.FormatInt(fileSize,10) + fsizeMod + "</td>"
+			html += "<td>" + strconv.FormatInt(file.size,10) + fsizeMod + "</td>"
 		} else {
 			html += "<td>-</td>"
 		}
@@ -283,11 +275,11 @@ func toApache(prefix string, files []string, updatedAt map[string]time.Time, siz
 	return html + "</table><hr></pre></body></html>"
 }
 
-func toSimpleHTML(files []string) string {
+func toSimpleHTML(files s3objects) string {
 
 	html := "<!DOCTYPE html><html><body>"
 	for _, file := range files {
-		html += "<a href=\"" + file + "\">" + file + "</a><br>"
+		html += "<a href=\"" + file.file + "\">" + file.file + "</a><br>"
 	}
 	return html + "</body></html>"
 }

@@ -58,6 +58,7 @@ WHITELIST_IP_RANGES       | commma separated list of IPs and IP ranges.       | 
 CONTENT_TYPE              | Override the default Content-Type response header |          | -
 CONTENT_DISPOSITION       | Override the default Content-Disposition response header |          | -
 USERNAME_HEADER           | Username Header name, for cloudflare Cf-Access-Authenticated-User-Email |          | -
+SORT                      | Sorts file listing (datedesc, dateasc, fileasc, filedesc) |          | fileasc
 
 ### 2. Run the application
 

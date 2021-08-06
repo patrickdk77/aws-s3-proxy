@@ -61,6 +61,10 @@ type config struct { // nolint
 	ContentType          string        // Override default Content-Type
 	ContentDisposition   string        // Override default Content-Disposition
 	UsernameHeader       string        // Username Header Cf-Access-Authenticated-User-Email
+	SortDateAsc          bool          // Sort by Date Asc
+	SortDateDesc         bool          // Sort by Date Desc
+	SortFileAsc          bool          // Sort by File Asc
+	SortFileDesc         bool          // Sort by File Desc
 }
 
 // Setup configurations with environment variables
@@ -121,6 +125,31 @@ func Setup() {
 	if b, err := strconv.ParseBool(os.Getenv("SPA")); err == nil {
 		SPA = b
 	}
+        sortDateDesc := false
+        sortDateAsc := false
+        sortFileAsc := true
+        sortFileDesc := false
+        if s := os.Getenv("SORT"); len(s) > 0 {
+        	switch s {
+        		case "datedesc":
+        			sortDateDesc=true
+        			sortDateAsc=false
+        			break;
+			case "dateasc":
+				sortDateAsc=true
+				sortDateDesc=false
+				break;
+			case "filedesc":
+				sortFileDesc=true
+				sortFileAsc=false
+				break;
+			default:
+				sortFileAsc=true
+				sortFileDesc=false
+				break;
+		}
+	}
+        			
 	whiteListIPRanges := []*net.IPNet{}
 	var err error
 	if whiteListIPRangesStr := os.Getenv("WHITELIST_IP_RANGES"); len(whiteListIPRangesStr) != 0 {
@@ -182,6 +211,10 @@ func Setup() {
 		ContentType:          os.Getenv("CONTENT_TYPE"),
 		ContentDisposition:   os.Getenv("CONTENT_DISPOSITION"),
 		UsernameHeader:       os.Getenv("USERNAME_HEADER"),
+		SortDateAsc:          sortDateAsc,
+		SortDateDesc:         sortDateDesc,
+		SortFileAsc:          sortFileAsc,
+		SortFileDesc:         sortFileDesc,
 	}
 
 	// Proxy
