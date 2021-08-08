@@ -4,7 +4,7 @@ SHORT_SHA1 := $(shell git rev-parse --short HEAD)
 ORIGIN := $(shell git remote get-url origin)
 DATE := $(date -u +'%Y-%m-%dT%H:%M:%Sz')
 VER := $(shell git describe --tags --abbrev=0)
-DOCK_REPO := patrickdk/s3proxy
+DOCK_REPO := patrickdk/s3-proxy
 
 export DOCKERFILE_PATH=Dockerfile
 export DOCKER_REPO=$(DOCK_REPO)
@@ -18,12 +18,15 @@ export SOURCE_BRANCH=$(BRANCH)
 export SOURCE_COMMIT=$(SHA1)
 export SOURCE_TYPE=git
 export SOURCE_REPOSITORY_URL=$(ORIGIN)
-export DOCKER_EXTRATAGS=latest
 
 all: build
 
 build: export DOCKER_TAG=$(GIT_VERSION)
 build: docker
+
+release: export DOCKER_TAG=$(GIT_VERSION)
+release: export DOCKER_EXTRATAGS=latest
+release: release-publish
 
 docker:
 	./hooks/post_checkout
@@ -31,7 +34,7 @@ docker:
 	./hooks/build
 #	./hooks/push
 
-release:
+release-publish:
 	./hooks/push
 
 deps:
