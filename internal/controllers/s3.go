@@ -127,7 +127,6 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, h
 	setStrHeader(w, "Content-Encoding", obj.ContentEncoding)
 	setStrHeader(w, "Content-Language", obj.ContentLanguage)
 
-	// Fix https://github.com/patrickdk77/aws-s3-proxy/issues/20
 	if len(w.Header().Get("Content-Encoding")) == 0 {
 		setIntHeader(w, "Content-Length", obj.ContentLength)
 	}
@@ -144,6 +143,15 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, h
 	}
 	setStrHeader(w, "ETag", obj.ETag)
 	setTimeHeader(w, "Last-Modified", obj.LastModified)
+	
+	// Location, rewrite to our own
+	if len(w.Header().Get("Location")) > 0 {
+		regex := *regexp.MustCompile('http://([^/]+)(/.+)$');
+		res := regex.FindStringSubmatch(w.Header().Get("Location"));
+		if string.Contains(res[0],&config.Config.S3Bucket) {
+			setStrHeader(w, "Location", res[1]);
+		}
+	}
 
 	w.WriteHeader(determineHTTPStatus(obj))
 }
