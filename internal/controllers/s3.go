@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"net/url"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -146,10 +147,10 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, h
 	
 	// Location, rewrite to our own
 	if len(w.Header().Get("Location")) > 0 {
-		regex := *regexp.MustCompile('http://([^/]+)(/.+)$');
-		res := regex.FindStringSubmatch(w.Header().Get("Location"));
-		if string.Contains(res[0],&config.Config.S3Bucket) {
-			setStrHeader(w, "Location", res[1]);
+		l, err := url.Parse(w.Header().Get("Location"));
+		if err == nil && strings.Contains(l.Host,config.Config.S3Bucket) {
+			path := l.RequestURI();
+			setStrHeader(w, "Location", &path);
 		}
 	}
 
