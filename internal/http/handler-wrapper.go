@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/malusev998/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
 
