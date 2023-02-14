@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -21,11 +22,14 @@ func main() {
 		proto = "https"
 	}
 	health := os.Getenv("HEALTHCHECKER_PATH")
-	if len(health)<1 {
+	if len(health) < 1 {
 		health = os.Getenv("HEALTHCHECK_PATH")
 	}
-	if len(health)>0 {
-		resp, err := http.Get(fmt.Sprintf("%s://%s:%s%s", proto, host, port, health))
+	if len(health) > 0 {
+		c := &http.Client{
+			Timeout: 5 * time.Second,
+		}
+		resp, err := c.Get(fmt.Sprintf("%s://%s:%s%s", proto, host, port, health))
 		if err != nil {
 			os.Exit(1)
 		}

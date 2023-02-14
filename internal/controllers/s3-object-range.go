@@ -27,7 +27,8 @@ func totalFileSizeEqualToContentRange(obj *s3.GetObjectOutput) bool {
 	return totalSizeIsEqualToContentRange
 }
 
-/**
+/*
+*
 See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
 */
 func getFileSizeAsString(obj *s3.GetObjectOutput) string {

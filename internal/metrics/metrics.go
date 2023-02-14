@@ -27,8 +27,8 @@ var (
 )
 
 /*
-   UpdateS3Reads receives the AWS error, action and source
-   and updates the s3_http_requests_total custom metric
+UpdateS3Reads receives the AWS error, action and source
+and updates the s3_http_requests_total custom metric
 */
 func UpdateS3Reads(err error, action, source string) {
 	if err == nil {

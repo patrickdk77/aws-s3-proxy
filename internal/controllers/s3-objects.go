@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"strings"
-	"unicode"
 	"time"
+	"unicode"
 
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
@@ -11,9 +11,9 @@ import (
 type s3objects []s3item
 
 type s3item struct {
-  file string
-  size int64
-  updatedAt time.Time
+	file      string
+	size      int64
+	updatedAt time.Time
 }
 
 func (s s3objects) Len() int {
@@ -36,11 +36,11 @@ func (s s3objects) Less(i, j int) bool {
 	if config.Config.SortDateDesc && s[i].updatedAt != s[j].updatedAt {
 		return s[i].updatedAt.After(s[j].updatedAt)
 	}
-	
+
 	if config.Config.SortDateAsc && s[i].updatedAt != s[j].updatedAt {
 		return s[i].updatedAt.Before(s[j].updatedAt)
 	}
-	
+
 	irs := []rune(s[i].file)
 	jrs := []rune(s[j].file)
 

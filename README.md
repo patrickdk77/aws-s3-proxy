@@ -59,6 +59,8 @@ CONTENT_TYPE              | Override the default Content-Type response header | 
 CONTENT_DISPOSITION       | Override the default Content-Disposition response header |          | -
 USERNAME_HEADER           | Username Header name, for cloudflare Cf-Access-Authenticated-User-Email |          | -
 SORT                      | Sorts file listing (datedesc, dateasc, fileasc, filedesc) |          | fileasc
+POST_TIMEOUT              | Timeout for reads (uploads) in seconds            |          | 60
+GET_TIMEOUT               | Timeout for writes, responses, in seconds         |          | 600
 
 ### 2. Run the application
 

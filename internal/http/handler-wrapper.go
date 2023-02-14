@@ -15,18 +15,18 @@ import (
 )
 
 type ReqInfo struct {
-	stime        time.Time
-	method       string
-	proto        string
-	uri          string
-	ip           string
-	port         string
-	status       int
-	size         int64
-	referer      string
-	userAgent    string
-	user         string
-	host         string
+	stime     time.Time
+	method    string
+	proto     string
+	uri       string
+	ip        string
+	port      string
+	status    int
+	size      int64
+	referer   string
+	userAgent string
+	user      string
+	host      string
 }
 
 // WrapHandler wraps every handlers
@@ -35,34 +35,34 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 		c := config.Config
 
 		addr := getIP(r)
-		rawIP,rawPort,_ := net.SplitHostPort(r.RemoteAddr)
-		clientIP,clientPort,err := net.SplitHostPort(addr)
+		rawIP, rawPort, _ := net.SplitHostPort(r.RemoteAddr)
+		clientIP, clientPort, err := net.SplitHostPort(addr)
 		if err != nil {
-			clientIP,clientPort,err = net.SplitHostPort(addr)
+			clientIP, clientPort, err = net.SplitHostPort(addr)
 			if err != nil {
-				clientIP,clientPort,err = net.SplitHostPort(net.JoinHostPort(addr,rawPort))
+				clientIP, clientPort, err = net.SplitHostPort(net.JoinHostPort(addr, rawPort))
 				if err != nil {
-					clientIP=rawIP
-					clientPort=rawPort
+					clientIP = rawIP
+					clientPort = rawPort
 				}
 			}
 		}
-		
+
 		ri := &ReqInfo{
-			stime: time.Now(),
-			method: r.Method,
-			uri: r.URL.String(),
-			proto: r.Proto,
-			ip: clientIP,
-			port: clientPort,
-			size: 0,
-			status: 0,
-			referer: r.Header.Get("Referer"),
+			stime:     time.Now(),
+			method:    r.Method,
+			uri:       r.URL.String(),
+			proto:     r.Proto,
+			ip:        clientIP,
+			port:      clientPort,
+			size:      0,
+			status:    0,
+			referer:   r.Header.Get("Referer"),
 			userAgent: r.Header.Get("User-Agent"),
-			host: r.Host,
-			user: "-",
+			host:      r.Host,
+			user:      "-",
 		}
-		
+
 		// WhiteListIPs
 		if len(c.WhiteListIPRanges) > 0 {
 			found := false
@@ -75,7 +75,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			}
 			if !found {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				ri.status=http.StatusUnauthorized
+				ri.status = http.StatusUnauthorized
 				accessLog(ri)
 				return
 			}
@@ -99,7 +99,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			!auth(r, c.BasicAuthUser, c.BasicAuthPass, ri) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			ri.status=http.StatusUnauthorized
+			ri.status = http.StatusUnauthorized
 			accessLog(ri)
 			return
 		}
@@ -107,7 +107,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 		if (len(c.JwtUserField) > 0 || len(c.JwtSecretKey) > 0) && !isValidJwt(r, ri) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			ri.status=http.StatusUnauthorized
+			ri.status = http.StatusUnauthorized
 			accessLog(ri)
 			return
 		}
@@ -145,7 +145,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 // header (for proxies) and falls back to use the remote address.
 func getIP(r *http.Request) string {
 	retIP := r.RemoteAddr
-	if len(config.Config.ForwardedFor)>0 {
+	if len(config.Config.ForwardedFor) > 0 {
 		forwarded := r.Header.Get(config.Config.ForwardedFor)
 		for _, address := range strings.Split(forwarded, ",") {
 			address = strings.TrimSpace(address)

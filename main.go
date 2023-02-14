@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/swag"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
@@ -48,12 +49,17 @@ func main() {
 	addr := net.JoinHostPort(config.Config.Host, config.Config.Port)
 	log.Printf("[service] listening on %s", addr)
 
+	s := &http.Server{
+		ReadHeaderTimeout: 20 * time.Second,
+		ReadTimeout:       config.Config.TimeoutRead,
+		WriteTimeout:      config.Config.TimeoutWrite,
+		Addr:              addr,
+		Handler:           &slashFix{httpMux},
+	}
 	if (len(config.Config.SslCert) > 0) && (len(config.Config.SslKey) > 0) {
-		log.Fatal(http.ListenAndServeTLS(
-			addr, config.Config.SslCert, config.Config.SslKey, &slashFix{httpMux},
-		))
+		log.Fatal(s.ListenAndServeTLS(config.Config.SslCert, config.Config.SslKey))
 	} else {
-		log.Fatal(http.ListenAndServe(addr, &slashFix{httpMux}))
+		log.Fatal(s.ListenAndServe())
 	}
 }
 

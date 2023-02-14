@@ -6,19 +6,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"net/url"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/go-openapi/swag"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
-	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 	"github.com/patrickdk77/aws-s3-proxy/internal/metrics"
+	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
 
 // AwsS3 handles requests for Amazon S3
@@ -66,7 +66,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code, message := toHTTPError(err)
 
-		if (code == 404 || code == 403) && c.SPA && strings.Index(path, c.IndexDocument) == -1 {
+		if (code == 404 || code == 403) && c.SPA && !strings.Contains(path, c.IndexDocument) {
 
 			idx := strings.LastIndex(path, "/")
 
@@ -144,13 +144,13 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, h
 	}
 	setStrHeader(w, "ETag", obj.ETag)
 	setTimeHeader(w, "Last-Modified", obj.LastModified)
-	
+
 	// Location, rewrite to our own
 	if len(w.Header().Get("Location")) > 0 {
-		l, err := url.Parse(w.Header().Get("Location"));
-		if err == nil && strings.Contains(l.Host,config.Config.S3Bucket) {
-			path := l.RequestURI();
-			setStrHeader(w, "Location", &path);
+		l, err := url.Parse(w.Header().Get("Location"))
+		if err == nil && strings.Contains(l.Host, config.Config.S3Bucket) {
+			path := l.RequestURI()
+			setStrHeader(w, "Location", &path)
 		}
 	}
 
@@ -214,7 +214,7 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	_, _ = fmt.Fprintln(w, string(jsonBytes))
 }
 
-func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) (s3objects) {
+func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) s3objects {
 	var candidates s3objects
 
 	// Prefixes
@@ -234,7 +234,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) (s3objects) {
 		candidates = append(candidates, s3item{candidate, *obj.Size, *obj.LastModified})
 	}
 	// Sort
-	sort.Sort(s3objects(candidates))
+	sort.Sort(candidates)
 
 	return candidates
 }
@@ -256,26 +256,26 @@ func toApache(prefix string, files s3objects) string {
 	html += "<body><h1>Index of " + prefix + "</h1><pre><table><tr><th>Name</th><th>Last Modified</th><th>Size</th></tr>"
 	for _, file := range files {
 		html += "<tr><td><a href=\"" + file.file + "\">" + file.file + "</a></td>"
-		if !file.updatedAt.IsZero()  {
+		if !file.updatedAt.IsZero() {
 			html += "<td>" + file.updatedAt.Format(time.RFC3339) + "</td>"
 		} else {
 			html += "<td>-</td>"
 		}
-		if file.size >=0 {
+		if file.size >= 0 {
 			fsizeMod := ""
-		        if file.size > 2000 {
-		        	fsizeMod="k"
-		        	file.size /= 1024
+			if file.size > 2000 {
+				fsizeMod = "k"
+				file.size /= 1024
 			}
-		        if file.size > 2000 {
-		        	fsizeMod="M"
-		        	file.size /= 1024
+			if file.size > 2000 {
+				fsizeMod = "M"
+				file.size /= 1024
 			}
-		        if file.size > 2000 {
-		        	fsizeMod="G"
-		        	file.size /= 1024
+			if file.size > 2000 {
+				fsizeMod = "G"
+				file.size /= 1024
 			}
-			html += "<td>" + strconv.FormatInt(file.size,10) + fsizeMod + "</td>"
+			html += "<td>" + strconv.FormatInt(file.size, 10) + fsizeMod + "</td>"
 		} else {
 			html += "<td>-</td>"
 		}

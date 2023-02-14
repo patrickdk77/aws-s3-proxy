@@ -1,12 +1,9 @@
 # AWS S3 Proxy
 # docker run -d -p 8080:80 -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_S3_BUCKET patrickdk/s3-proxy
 
-ARG BUILD_FROM_PREFIX
 
-FROM ${BUILD_FROM_PREFIX}golang:alpine3.15 AS builder
-ARG BUILD_ARCH
-ARG QEMU_ARCH
-COPY .gitignore qemu-${QEMU_ARCH}-static* /usr/bin/
+FROM golang:alpine3.17 AS builder
+COPY .gitignore /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
 COPY . /go/src/
@@ -17,14 +14,14 @@ ARG BUILD_GOARCH
 ARG BUILD_GOOS
 RUN go mod download \
  && go mod verify \
- && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
+ && CGO_ENABLED=0 go build \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o /health ./healthcheck \
- && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
+ && CGO_ENABLED=0 go build \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o /app
 
-FROM alpine:3.15 AS libs
+FROM alpine:3.17 AS libs
 RUN apk --no-cache add ca-certificates
 
 FROM scratch

@@ -9,8 +9,7 @@ import (
 
 func toHTTPError(err error) (int, string) {
 	if rerr, ok := err.(awserr.RequestFailure); ok {
-		switch rerr.StatusCode() {
-		case http.StatusRequestedRangeNotSatisfiable:
+		if rerr.StatusCode() == http.StatusRequestedRangeNotSatisfiable {
 			return rerr.StatusCode(), rerr.Message()
 		}
 	}
@@ -19,10 +18,8 @@ func toHTTPError(err error) (int, string) {
 		switch aerr.Code() {
 		case s3.ErrCodeNoSuchBucket, s3.ErrCodeNoSuchKey:
 			statusCode = http.StatusNotFound
-			break
 		case "AccessDenied":
 			statusCode = http.StatusForbidden
-			break
 		}
 	}
 	return statusCode, err.Error()

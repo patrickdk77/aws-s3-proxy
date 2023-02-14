@@ -8,7 +8,7 @@ import (
 type custom struct {
 	io.Writer
 	http.ResponseWriter
-	status int
+	status  int
 	Written int64
 }
 

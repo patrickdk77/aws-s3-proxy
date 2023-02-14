@@ -12,7 +12,7 @@ import (
 
 // Config represents its configurations
 var (
-	Config *config
+	Config    *config
 	AccessLog *log.Logger
 )
 
@@ -54,8 +54,8 @@ type config struct { // nolint
 	DisableCompression   bool          // DISABLE_COMPRESSION
 	InsecureTLS          bool          // Disables TLS validation on request endpoints.
 	JwtSecretKey         string        // JWT_SECRET_KEY
-        JwtUserField         string        // JWT_USER_FIELD
-        JwtHeader            string        // JWT_HEADER
+	JwtUserField         string        // JWT_USER_FIELD
+	JwtHeader            string        // JWT_HEADER
 	SPA                  bool          // SPA
 	WhiteListIPRanges    []*net.IPNet  // WHITELIST_IP_RANGES is commma separated list of IP's and IP ranges. Needs parsing.
 	ContentType          string        // Override default Content-Type
@@ -65,6 +65,8 @@ type config struct { // nolint
 	SortDateDesc         bool          // Sort by Date Desc
 	SortFileAsc          bool          // Sort by File Asc
 	SortFileDesc         bool          // Sort by File Desc
+	TimeoutRead          time.Duration // Timeout on reads (uploads)
+	TimeoutWrite         time.Duration // Timeout on writes (downloads)
 }
 
 // Setup configurations with environment variables
@@ -125,31 +127,35 @@ func Setup() {
 	if b, err := strconv.ParseBool(os.Getenv("SPA")); err == nil {
 		SPA = b
 	}
-        sortDateDesc := false
-        sortDateAsc := false
-        sortFileAsc := true
-        sortFileDesc := false
-        if s := os.Getenv("SORT"); len(s) > 0 {
-        	switch s {
-        		case "datedesc":
-        			sortDateDesc=true
-        			sortDateAsc=false
-        			break;
-			case "dateasc":
-				sortDateAsc=true
-				sortDateDesc=false
-				break;
-			case "filedesc":
-				sortFileDesc=true
-				sortFileAsc=false
-				break;
-			default:
-				sortFileAsc=true
-				sortFileDesc=false
-				break;
+	sortDateDesc := false
+	sortDateAsc := false
+	sortFileAsc := true
+	sortFileDesc := false
+	if s := os.Getenv("SORT"); len(s) > 0 {
+		switch s {
+		case "datedesc":
+			sortDateDesc = true
+			sortDateAsc = false
+		case "filedesc":
+			sortDateDesc = true
+			sortDateAsc = false
+		case "dateasc":
+			sortDateAsc = true
+			sortDateDesc = false
+		default:
+			sortDateAsc = true
+			sortDateDesc = false
 		}
 	}
-        			
+	timeoutRead := time.Duration(60) * time.Second
+	if b, err := strconv.ParseInt(os.Getenv("POST_TIMEOUT"), 10, 64); err == nil {
+		timeoutRead = time.Duration(b) * time.Second
+	}
+	timeoutWrite := time.Duration(600) * time.Second
+	if b, err := strconv.ParseInt(os.Getenv("GET_TIMEOUT"), 10, 64); err == nil {
+		timeoutWrite = time.Duration(b) * time.Second
+	}
+
 	whiteListIPRanges := []*net.IPNet{}
 	var err error
 	if whiteListIPRangesStr := os.Getenv("WHITELIST_IP_RANGES"); len(whiteListIPRangesStr) != 0 {
@@ -159,12 +165,12 @@ func Setup() {
 			log.Fatalf("%v", err)
 		}
 	}
-        usernames := []string{}
+	usernames := []string{}
 	username := os.Getenv("BASIC_AUTH_USER")
 	if username != "" {
 		usernames = strings.Split(username, " ")
 	}
-        passwords := []string{}
+	passwords := []string{}
 	password := os.Getenv("BASIC_AUTH_PASS")
 	if password != "" {
 		passwords = strings.Split(password, " ")
@@ -215,6 +221,8 @@ func Setup() {
 		SortDateDesc:         sortDateDesc,
 		SortFileAsc:          sortFileAsc,
 		SortFileDesc:         sortFileDesc,
+		TimeoutRead:          timeoutRead,
+		TimeoutWrite:         timeoutWrite,
 	}
 
 	// Proxy
@@ -238,7 +246,7 @@ func Setup() {
 		log.Printf("[config] WhiteListIPRanges enabled: %v", Config.WhiteListIPRanges)
 	}
 	if Config.AccessLog {
-		AccessLog = log.New(os.Stdout, "",0)
+		AccessLog = log.New(os.Stdout, "", 0)
 	}
 }
 
