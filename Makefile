@@ -26,6 +26,7 @@ all: buildx
 
 buildx:
 	docker buildx build --pull --push \
+	        --platform linux/amd64,linux/arm64 \
 		--build-arg BUILD_GOOS=linux \
 		--build-arg BUILD_DATE=${BUILD_DATE} \
 		--build-arg BUILD_REF=${GIT_SHORT_SHA1} \
