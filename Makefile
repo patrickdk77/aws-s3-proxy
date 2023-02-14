@@ -14,6 +14,8 @@ export GIT_SHA1=$(SHA1)
 export GIT_SHORT_SHA1=$(SHORT_SHA1)
 export GIT_TAG=$(SHA1)
 export GIT_VERSION=$(VER)
+export GIT_VERSION_MAJOR=$(shell echo $(VER) | cut -f1 -d.)
+export GIT_VERSION_MINOR=$(shell echo $(VER) | cut -f2 -d.)
 export IMAGE_NAME=$(DOCKER_REPO):$(DOCKER_TAG)
 export SOURCE_BRANCH=$(BRANCH)
 export SOURCE_COMMIT=$(SHA1)
@@ -30,7 +32,10 @@ buildx:
 		--build-arg BUILD_VERSION=${GIT_VERSION} \
 		--build-arg BUILD_REPO=${BUILD_REPO} \
 		--file ${DOCKERFILE_PATH} \
-		--tag ${DOCKER_REPO}:${GIT_VERSION} --tag ${IMAGE_NAME} \
+		--tag ${DOCKER_REPO}:${GIT_VERSION} \
+		--tag ${DOCKER_REPO}:${GIT_VERSION_MAJOR} \
+		--tag ${DOCKER_REPO}:${GIT_VERSION_MAJOR}.${GIT_VERSION_MINOR} \
+		--tag ${IMAGE_NAME} \
 		.
 
 
