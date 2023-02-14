@@ -1,8 +1,9 @@
 # AWS S3 Proxy
 # docker run -d -p 8080:80 -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_S3_BUCKET patrickdk/s3-proxy
 
+ARG BUILD_FROM_PREFIX
 
-FROM golang:alpine3.17 AS builder
+FROM ${BUILD_FROM_PREFIX}golang:alpine3.17 AS builder
 COPY .gitignore /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/

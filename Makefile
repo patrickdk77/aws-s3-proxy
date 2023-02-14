@@ -29,7 +29,7 @@ buildx:
 		--build-arg BUILD_REF=${GIT_SHORT_SHA1} \
 		--build-arg BUILD_VERSION=${GIT_VERSION} \
 		--build-arg BUILD_REPO=${BUILD_REPO} \
-		--file $DOCKERFILE_PATH \
+		--file ${DOCKERFILE_PATH} \
 		--tag ${DOCKER_REPO}:${GIT_VERSION} --tag ${IMAGE_NAME} \
 		.
 
