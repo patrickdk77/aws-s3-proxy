@@ -3,7 +3,7 @@
 
 ARG BUILD_FROM_PREFIX
 
-FROM ${BUILD_FROM_PREFIX}golang:alpine3.17 AS builder
+FROM ${BUILD_FROM_PREFIX}golang:alpine3.19 AS builder
 COPY .gitignore /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
@@ -22,7 +22,7 @@ RUN go mod download \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o /app
 
-FROM alpine:3.17 AS libs
+FROM alpine:3.19 AS libs
 RUN apk --no-cache add ca-certificates
 
 FROM scratch

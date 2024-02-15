@@ -240,7 +240,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) s3objects {
 }
 
 func toHTML(files s3objects) string {
-	html := "<!DOCTYPE html><html><body><ul>"
+	html := "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><ul>"
 	for _, file := range files {
 		html += "<li><a href=\"" + file.file + "\">" + file.file + "</a>"
 		if !file.updatedAt.IsZero() {
@@ -252,7 +252,7 @@ func toHTML(files s3objects) string {
 }
 
 func toApache(prefix string, files s3objects) string {
-	html := "<!DOCTYPE html><html><head><title>Index of " + prefix + "</title></head>"
+	html := "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Index of " + prefix + "</title></head>"
 	html += "<body><h1>Index of " + prefix + "</h1><pre><table><tr><th>Name</th><th>Last Modified</th><th>Size</th></tr>"
 	for _, file := range files {
 		html += "<tr><td><a href=\"" + file.file + "\">" + file.file + "</a></td>"
