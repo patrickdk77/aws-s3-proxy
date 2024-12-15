@@ -59,7 +59,7 @@ release-publish:
 deps:
 	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \
-			golang:alpine3.19 sh -c 'apk --no-cache add git && go mod vendor'
+			golang:alpine3.21 sh -c 'apk --no-cache add git && go mod vendor'
 
 up:
 	@docker-compose up -d
