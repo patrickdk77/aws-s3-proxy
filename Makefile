@@ -57,7 +57,7 @@ release-publish:
 	./hooks/push
 
 deps:
-	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
+	@docker run --rm -it -e GOPROXY=direct -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \
 			golang:alpine3.21 sh -c 'apk --no-cache add git && go mod vendor'
 

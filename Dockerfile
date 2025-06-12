@@ -3,7 +3,7 @@
 
 ARG BUILD_FROM_PREFIX
 
-FROM ${BUILD_FROM_PREFIX}golang:alpine3.19 AS builder
+FROM ${BUILD_FROM_PREFIX}golang:alpine AS builder
 COPY .gitignore /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
@@ -13,7 +13,8 @@ ARG BUILD_DATE
 ARG BUILD_REF
 ARG BUILD_GOARCH
 ARG BUILD_GOOS
-RUN go mod download \
+RUN export GOPROXY=direct \
+ && go mod download \
  && go mod verify \
  && CGO_ENABLED=0 go build \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
