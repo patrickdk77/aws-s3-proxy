@@ -1,8 +1,6 @@
 module github.com/patrickdk77/aws-s3-proxy
 
-go 1.23.0
-
-toolchain go1.23.1
+go 1.24.2
 
 require (
 	github.com/aws/aws-sdk-go v1.55.7
