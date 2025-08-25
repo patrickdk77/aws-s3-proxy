@@ -26,7 +26,7 @@ all: buildx
 
 buildx:
 	docker buildx build --pull --push \
-	        --platform linux/amd64,linux/arm64 \
+		--platform linux/amd64,linux/arm64 \
 		--build-arg BUILD_GOOS=linux \
 		--build-arg BUILD_DATE=${BUILD_DATE} \
 		--build-arg BUILD_REF=${GIT_SHORT_SHA1} \
@@ -57,11 +57,11 @@ release-publish:
 	./hooks/push
 
 update:
-        GOPROXY=direct go get -u
-        GOPROXY=direct go mod tidy
+	GOPROXY=direct go get -u
+	GOPROXY=direct go mod tidy
 
 deps:
-        GOPROXY=direct go mod vendor
+	GOPROXY=direct go mod vendor
 #	@docker run --rm -it -e GOPROXY=direct -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 #			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \
 #			golang:alpine3.21 sh -c 'apk --no-cache add git && go mod vendor'
@@ -78,7 +78,7 @@ down:
 test:
 	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \
-            golangci/golangci-lint:latest-alpine \
+	    golangci/golangci-lint:latest-alpine \
 			golangci-lint run --config .golangci.yml
 	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \

@@ -99,4 +99,4 @@ proxy:
 
 ## Copyright and license
 
-Code released under the [MIT license](https://github.com/pottava/aws-s3-proxy/blob/master/LICENSE).
+Code released under the [MIT license](https://github.com/patrickdk77/aws-s3-proxy/blob/master/LICENSE).
