@@ -33,11 +33,11 @@ buildx:
 		--build-arg BUILD_VERSION=${GIT_VERSION} \
 		--build-arg BUILD_REPO=${BUILD_REPO} \
 		--file ${DOCKERFILE_PATH} \
-		--tag ${DOCKER_REPO}:${GIT_VERSION} \
-		--tag ${DOCKER_REPO}:${GIT_VERSION_MAJOR} \
-		--tag ${DOCKER_REPO}:${GIT_VERSION_MAJOR}.${GIT_VERSION_MINOR} \
 		--tag ${IMAGE_NAME} \
 		.
+	skopeo copy --all docker://${IMAGE_NAME} docker://${DOCKER_REPO}:${GIT_VERSION}
+	skopeo copy --all docker://${IMAGE_NAME} docker://${DOCKER_REPO}:${GIT_VERSION_MAJOR}
+	skopeo copy --all docker://${IMAGE_NAME} docker://${DOCKER_REPO}:${GIT_VERSION_MAJOR}.${GIT_VERSION_MINOR}
 
 
 build: export DOCKER_TAG=$(GIT_VERSION)
