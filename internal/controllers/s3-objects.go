@@ -55,18 +55,18 @@ func (s s3objects) Less(i, j int) bool {
 		jrl := unicode.ToLower(jr)
 
 		if irl != jrl {
-			if config.Config.SortDateAsc {
+			if config.Config.SortFileAsc {
 				return irl < jrl
 			}
-			if config.Config.SortDateDesc {
+			if config.Config.SortFileDesc {
 				return irl > jrl
 			}
 		}
 		if ir != jr {
-			if config.Config.SortDateAsc {
+			if config.Config.SortFileAsc {
 				return ir < jr
 			}
-			if config.Config.SortDateDesc {
+			if config.Config.SortFileDesc {
 				return ir > jr
 			}
 		}

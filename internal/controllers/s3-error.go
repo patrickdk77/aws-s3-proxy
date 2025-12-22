@@ -1,26 +1,34 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 )
 
 func toHTTPError(err error) (int, string) {
-	if rerr, ok := err.(awserr.RequestFailure); ok {
-		if rerr.StatusCode() == http.StatusRequestedRangeNotSatisfiable {
-			return rerr.StatusCode(), rerr.Message()
-		}
-	}
-	statusCode := http.StatusInternalServerError
-	if aerr, ok := err.(awserr.Error); ok {
-		switch aerr.Code() {
-		case s3.ErrCodeNoSuchBucket, s3.ErrCodeNoSuchKey:
-			statusCode = http.StatusNotFound
+	var ae smithy.APIError
+	if errors.As(err, &ae) {
+		switch ae.ErrorCode() {
+		case "NoSuchKey", "NoSuchBucket", "NotFound":
+			return http.StatusNotFound, err.Error()
 		case "AccessDenied":
-			statusCode = http.StatusForbidden
+			return http.StatusForbidden, err.Error()
+		case "InvalidRange":
+			return http.StatusRequestedRangeNotSatisfiable, err.Error()
 		}
 	}
-	return statusCode, err.Error()
+	// Check for typed errors as fallback or specific handling
+	var nsk *types.NoSuchKey
+	if errors.As(err, &nsk) {
+		return http.StatusNotFound, err.Error()
+	}
+	var nsb *types.NoSuchBucket
+	if errors.As(err, &nsb) {
+		return http.StatusNotFound, err.Error()
+	}
+
+	return http.StatusInternalServerError, err.Error()
 }

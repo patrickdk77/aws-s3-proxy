@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/controllers"
 	common "github.com/patrickdk77/aws-s3-proxy/internal/http"
@@ -73,7 +73,7 @@ func validateAwsConfigurations() {
 	if len(os.Getenv("AWS_S3_BUCKET")) == 0 {
 		log.Fatal("Missing required environment variable: AWS_S3_BUCKET")
 	}
-	if swag.IsZero(config.Config.AwsRegion) {
+	if typeutils.IsZero(config.Config.AwsRegion) {
 		config.Config.AwsRegion = "us-east-1"
 		if region, err := service.GuessBucketRegion(config.Config.S3Bucket); err == nil {
 			config.Config.AwsRegion = region

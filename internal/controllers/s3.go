@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/go-openapi/swag"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/metrics"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
@@ -33,7 +33,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 
 	// Range header
 	var rangeHeader *string
-	if candidate := r.Header.Get("Range"); !swag.IsZero(candidate) {
+	if candidate := r.Header.Get("Range"); !typeutils.IsZero(candidate) {
 		rangeHeader = aws.String(candidate)
 	}
 
@@ -42,18 +42,18 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	// Replace path with symlink.json
 	idx := strings.Index(path, "symlink.json")
 	if idx > -1 {
-		replaced, err := replacePathWithSymlink(client, c.S3Bucket, c.S3KeyPrefix+path[:idx+12])
+		replaced, err := replacePathWithSymlink(r, client, c.S3Bucket, c.S3KeyPrefix+path[:idx+12])
 		if err != nil {
 			code, message := toHTTPError(err)
 			http.Error(w, message, code)
 			return
 		}
-		path = aws.StringValue(replaced) + path[idx+12:]
+		path = aws.ToString(replaced) + path[idx+12:]
 	}
 	// Ends with / -> listing or index.html
 	if strings.HasSuffix(path, "/") {
 		if c.DirectoryListing {
-			if !c.DirListingCheckIndex || !client.S3exists(c.S3Bucket, c.S3KeyPrefix+path+c.IndexDocument) {
+			if !c.DirListingCheckIndex || !client.S3exists(r.Context(), c.S3Bucket, c.S3KeyPrefix+path+c.IndexDocument) {
 				s3listFiles(w, r, client, c.S3Bucket, c.S3KeyPrefix+path)
 				return
 			}
@@ -64,7 +64,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		// Get a S3 object
-		obj, err := client.S3get(c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
+		obj, err := client.S3get(r.Context(), c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
 		metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 		if err != nil {
 			code, message := toHTTPError(err)
@@ -73,7 +73,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 				if idx > -1 {
 					indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
 					var indexError error
-					obj, indexError = client.S3get(c.S3Bucket, indexPath, rangeHeader)
+					obj, indexError = client.S3get(r.Context(), c.S3Bucket, indexPath, rangeHeader)
 					if indexError != nil {
 						code, message = toHTTPError(indexError)
 						http.Error(w, message, code)
@@ -89,7 +89,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(w, obj.Body) // nolint
 	case "HEAD":
 		// Head a S3 object
-		obj, err := client.S3head(c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
+		obj, err := client.S3head(r.Context(), c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
 		// metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 		if err != nil {
 			code, message := toHTTPError(err)
@@ -98,7 +98,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 				if idx > -1 {
 					indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
 					var indexError error
-					obj, indexError = client.S3head(c.S3Bucket, indexPath, rangeHeader)
+					obj, indexError = client.S3head(r.Context(), c.S3Bucket, indexPath, rangeHeader)
 					if indexError != nil {
 						code, message = toHTTPError(indexError)
 						http.Error(w, message, code)
@@ -113,13 +113,13 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		setHeadersFromAwsHeadResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
 	default:
 		// return method not allowed, 405
-		http.Error(w, "Method Not Allowed", 405)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
 }
 
-func replacePathWithSymlink(client service.AWS, bucket, symlinkPath string) (*string, error) {
-	obj, err := client.S3get(bucket, symlinkPath, nil)
+func replacePathWithSymlink(r *http.Request, client service.AWS, bucket, symlinkPath string) (*string, error) {
+	obj, err := client.S3get(r.Context(), bucket, symlinkPath, nil)
 	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 	if err != nil {
 		return nil, err
@@ -148,8 +148,8 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, h
 	// Expires
 	if len(httpExpires) > 0 {
 		setStrHeader(w, "Expires", &httpExpires)
-	} else {
-		setStrHeader(w, "Expires", obj.Expires)
+	} else if obj.ExpiresString != nil {
+		setStrHeader(w, "Expires", obj.ExpiresString)
 	}
 	setStrHeader(w, "Content-Encoding", obj.ContentEncoding)
 	setStrHeader(w, "Content-Language", obj.ContentLanguage)
@@ -194,8 +194,8 @@ func setHeadersFromAwsHeadResponse(w http.ResponseWriter, obj *s3.HeadObjectOutp
 	// Expires
 	if len(httpExpires) > 0 {
 		setStrHeader(w, "Expires", &httpExpires)
-	} else {
-		setStrHeader(w, "Expires", obj.Expires)
+	} else if obj.ExpiresString != nil {
+		setStrHeader(w, "Expires", obj.ExpiresString)
 	}
 	setStrHeader(w, "Content-Encoding", obj.ContentEncoding)
 	setStrHeader(w, "Content-Language", obj.ContentLanguage)
@@ -249,7 +249,7 @@ func setTimeHeader(w http.ResponseWriter, key string, value *time.Time) {
 func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, bucket, prefix string) {
 	prefix = strings.TrimPrefix(prefix, "/")
 
-	result, err := client.S3listObjects(bucket, prefix)
+	result, err := client.S3listObjects(r.Context(), bucket, prefix)
 	metrics.UpdateS3Reads(err, metrics.ListObjectAction, metrics.ProxySource)
 	if err != nil {
 		code, message := toHTTPError(err)
@@ -285,12 +285,12 @@ func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, buc
 	_, _ = fmt.Fprintln(w, string(jsonBytes))
 }
 
-func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) s3objects {
+func convertToMaps(s3output *s3.ListObjectsV2Output, prefix string) s3objects {
 	var candidates s3objects
 
 	// Prefixes
 	for _, obj := range s3output.CommonPrefixes {
-		candidate := strings.TrimPrefix(aws.StringValue(obj.Prefix), prefix)
+		candidate := strings.TrimPrefix(aws.ToString(obj.Prefix), prefix)
 		if len(candidate) == 0 {
 			continue
 		}
@@ -298,7 +298,7 @@ func convertToMaps(s3output *s3.ListObjectsOutput, prefix string) s3objects {
 	}
 	// Contents
 	for _, obj := range s3output.Contents {
-		candidate := strings.TrimPrefix(aws.StringValue(obj.Key), prefix)
+		candidate := strings.TrimPrefix(aws.ToString(obj.Key), prefix)
 		if len(candidate) == 0 {
 			continue
 		}

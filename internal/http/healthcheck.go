@@ -9,17 +9,14 @@ import (
 
 	"github.com/patrickdk77/aws-s3-proxy/internal/metrics"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"errors"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
-
-// HealthcheckResponse struct builds the healthcheck endpoint response
-type HealthcheckResponse struct {
-	S3Bucket healthcheck `json:"s3_bucket"`
-}
 
 // HealthcheckHandler wraps the content of each service dependency
 type healthcheck struct {
@@ -29,8 +26,13 @@ type healthcheck struct {
 	Error     string        `json:"error,omitempty"`
 }
 
-func executeHealthCheck(_ context.Context, awsClient service.AWS) error {
-	_, err := awsClient.S3get(config.Config.S3Bucket, config.Config.HealthCheckPath, nil)
+// HealthcheckResponse struct builds the healthcheck endpoint response
+type HealthcheckResponse struct {
+	S3Bucket healthcheck `json:"s3_bucket"`
+}
+
+func executeHealthCheck(ctx context.Context, awsClient service.AWS) error {
+	_, err := awsClient.S3get(ctx, config.Config.S3Bucket, config.Config.HealthCheckPath, nil)
 
 	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.HealthcheckSource)
 	// if file exists, return ok
@@ -39,11 +41,18 @@ func executeHealthCheck(_ context.Context, awsClient service.AWS) error {
 	}
 	// we have some kind of error. Normally we accept the 404 key not found because it means that we are able
 	// to reach the endpoint without any issue.
-	if aerr, ok := err.(awserr.Error); ok {
-		if aerr.Code() == s3.ErrCodeNoSuchKey {
+	var ae smithy.APIError
+	if errors.As(err, &ae) {
+		if ae.ErrorCode() == "NoSuchKey" {
 			return nil
 		}
 	}
+	// Also check typed error
+	var nsk *types.NoSuchKey
+	if errors.As(err, &nsk) {
+		return nil
+	}
+
 	return err
 }
 

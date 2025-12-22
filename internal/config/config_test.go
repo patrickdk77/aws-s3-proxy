@@ -47,6 +47,9 @@ func defaultConfig() *config {
 		WhiteListIPRanges:    make([]*net.IPNet, 0),
 		ContentType:          "",
 		ContentDisposition:   "",
+		SortFileAsc:          true,
+		TimeoutRead:          time.Duration(60) * time.Second,
+		TimeoutWrite:         time.Duration(600) * time.Second,
 	}
 }
 

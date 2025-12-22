@@ -5,10 +5,30 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/stretchr/testify/assert"
 )
+
+type mockAPIError struct {
+	code    string
+	message string
+	fault   smithy.ErrorFault
+}
+
+func (m mockAPIError) Error() string {
+	return m.message
+}
+func (m mockAPIError) ErrorCode() string {
+	return m.code
+}
+func (m mockAPIError) ErrorMessage() string {
+	return m.message
+}
+func (m mockAPIError) ErrorFault() smithy.ErrorFault {
+	return m.fault
+}
 
 func TestToHTTPError(t *testing.T) {
 	expectedCode := http.StatusInternalServerError
@@ -21,40 +41,37 @@ func TestToHTTPError(t *testing.T) {
 }
 
 func TestToHTTPNoSuchBucketError(t *testing.T) {
-	expectedCode := http.StatusInternalServerError
-	expectedMsg := "NoSuchBucket: 2\ncaused by: 1"
+	expectedCode := http.StatusNotFound
+	expectedMsg := "NoSuchBucket"
 
-	code, msg := toHTTPError(awserr.New(
-		s3.ErrCodeNoSuchBucket,
-		"2",
-		errors.New("1"),
-	))
+	// Using typed error
+	err := &types.NoSuchBucket{Message: aws.String(expectedMsg)}
+
+	code, msg := toHTTPError(err)
 	assert.Equal(t, expectedCode, code)
-	assert.Equal(t, expectedMsg, msg)
+	assert.Contains(t, msg, expectedMsg)
 }
 
 func TestToHTTPNoSuchKeyError(t *testing.T) {
 	expectedCode := http.StatusNotFound
-	expectedMsg := "NoSuchKey: 2\ncaused by: 1"
+	expectedMsg := "NoSuchKey"
 
-	code, msg := toHTTPError(awserr.New(
-		s3.ErrCodeNoSuchKey,
-		"2",
-		errors.New("1"),
-	))
+	// Using API Error
+	err := mockAPIError{code: "NoSuchKey", message: expectedMsg}
+
+	code, msg := toHTTPError(err)
 	assert.Equal(t, expectedCode, code)
 	assert.Equal(t, expectedMsg, msg)
 }
 
-func TestToHTTPNoSuchUploadError(t *testing.T) {
-	expectedCode := http.StatusInternalServerError
-	expectedMsg := "NoSuchUpload: 2\ncaused by: 1"
+func TestToHTTPInvalidRangeError(t *testing.T) {
+	expectedCode := http.StatusRequestedRangeNotSatisfiable
+	expectedMsg := "InvalidRange"
 
-	code, msg := toHTTPError(awserr.New(
-		s3.ErrCodeNoSuchUpload,
-		"2",
-		errors.New("1"),
-	))
+	// Using API Error
+	err := mockAPIError{code: "InvalidRange", message: expectedMsg}
+
+	code, msg := toHTTPError(err)
 	assert.Equal(t, expectedCode, code)
 	assert.Equal(t, expectedMsg, msg)
 }

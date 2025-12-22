@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func determineHTTPStatus(obj *s3.GetObjectOutput) int {
@@ -28,9 +28,8 @@ func totalFileSizeEqualToContentRange(obj *s3.GetObjectOutput) bool {
 }
 
 /*
-*
-See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
-*/
+ *   See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
+ */
 func getFileSizeAsString(obj *s3.GetObjectOutput) string {
 	s := strings.Split(*obj.ContentRange, "/")
 	if len(s) > 1 {

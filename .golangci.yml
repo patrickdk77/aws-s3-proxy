@@ -1,58 +1,50 @@
+version: "2"
 run:
-  deadline: 3m
   issues-exit-code: 1
   tests: false
-  skip-dirs:
-    - generated
-
-output:
-  format: colored-line-number # colored-line-number|line-number|json|tab|checkstyle
-  print-issued-lines: true
-  print-linter-name: true
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - govet
     - errcheck
-    - staticcheck
-    - unused
-    - gosimple
-    - structcheck
-    - varcheck
-    - ineffassign
-    - deadcode
-    - typecheck
-    # default disabled
-    - golint
-    - gosec
-    - unconvert
     - goconst
-    - goimports
-    - maligned
-    - megacheck
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
     - misspell
     - nakedret
     - prealloc
-    - scopelint
-    - gocritic
-
-linters-settings:
-  govet:
-    check-shadowing: true
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-  unused:
-    check-exported: false
-  golint:
-    min-confidence: 0.8
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  maligned:
-    suggest-new: true
-  misspell:
-    locale: US
-  nakedret:
-    max-func-lines: 30
+    - staticcheck
+    - unconvert
+    - unused
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 30
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

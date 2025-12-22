@@ -212,8 +212,10 @@ func isValidJwt(r *http.Request, ri *ReqInfo) bool {
 		return []byte(secretKey), nil
 	})
 	claims := token.Claims.(jwt.MapClaims)
-	if len(claims[config.Config.JwtUserField].(string)) > 0 {
-		ri.user = claims[config.Config.JwtUserField].(string)
+	if len(config.Config.JwtUserField) > 0 {
+		if user, ok := claims[config.Config.JwtUserField].(string); ok {
+			ri.user = user
+		}
 	}
 	if value {
 		return true

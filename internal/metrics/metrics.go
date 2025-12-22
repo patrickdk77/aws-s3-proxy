@@ -1,7 +1,9 @@
 package metrics
 
 import (
-	"github.com/aws/aws-sdk-go/aws/awserr"
+	"errors"
+
+	"github.com/aws/smithy-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -39,10 +41,11 @@ func UpdateS3Reads(err error, action, source string) {
 		).Inc()
 		return
 	}
-	if aerr, ok := err.(awserr.Error); ok {
+	var ae smithy.APIError
+	if errors.As(err, &ae) {
 		S3Reads.WithLabelValues(
 			action,
-			aerr.Code(),
+			ae.ErrorCode(),
 			source,
 		).Inc()
 		return
