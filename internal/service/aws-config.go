@@ -3,16 +3,32 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
 
+var cfg aws.Config
+var cfgTime time.Time = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
 func awsSession(ctx context.Context, region *string) aws.Config {
-	var cfg aws.Config
+	//var cfg aws.Config
 	var err error
+
+	secs := time.Since(cfgTime).Seconds()
+	if secs < 65 { // Quick return
+		return cfg
+	}
+
+	// only allow an increasing amount to skip this so we do not suddenly hammer imds endpoint and slow everything down
+	// aws-sdk refreshs token 5min before expired, so we need to skip this atleast once in the 5min timeframe
+	if rand.Float64() * secs < 60 && secs < 250 {
+		return cfg
+	}
 
 	opts := []func(*awsconfig.LoadOptions) error{
 		awsconfig.WithHTTPClient(configureClient()),
@@ -29,6 +45,7 @@ func awsSession(ctx context.Context, region *string) aws.Config {
 		panic(err)
 	}
 
+	cfgTime = time.Now()
 	return cfg
 }
 

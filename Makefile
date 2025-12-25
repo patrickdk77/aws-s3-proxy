@@ -16,7 +16,7 @@ export GIT_TAG=$(SHA1)
 export GIT_VERSION=$(VER)
 export GIT_VERSION_MAJOR=$(shell echo $(VER) | cut -f1 -d.)
 export GIT_VERSION_MINOR=$(shell echo $(VER) | cut -f2 -d.)
-export IMAGE_NAME=$(DOCKER_REPO):$(DOCKER_TAG)
+export IMAGE_NAME=$(DOCKER_REPO):$(VER)
 export SOURCE_BRANCH=$(BRANCH)
 export SOURCE_COMMIT=$(SHA1)
 export SOURCE_TYPE=git
@@ -35,9 +35,9 @@ buildx:
 		--file ${DOCKERFILE_PATH} \
 		--tag ${IMAGE_NAME} \
 		.
-	skopeo copy --all docker://${IMAGE_NAME} docker://${DOCKER_REPO}:${GIT_VERSION}
 	skopeo copy --all docker://${IMAGE_NAME} docker://${DOCKER_REPO}:${GIT_VERSION_MAJOR}
 	skopeo copy --all docker://${IMAGE_NAME} docker://${DOCKER_REPO}:${GIT_VERSION_MAJOR}.${GIT_VERSION_MINOR}
+	skopeo copy --all docker://${IMAGE_NAME} docker://${DOCKER_REPO}:latest
 
 
 build: export DOCKER_TAG=$(GIT_VERSION)
@@ -67,13 +67,13 @@ deps:
 #			golang:alpine3.21 sh -c 'apk --no-cache add git && go mod vendor'
 
 up:
-	@docker-compose up -d
+	@docker compose up -d
 
 logs:
-	@docker-compose logs -f
+	@docker compose logs -f
 
 down:
-	@docker-compose down -v
+	@docker compose down -v
 
 test:
 	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
