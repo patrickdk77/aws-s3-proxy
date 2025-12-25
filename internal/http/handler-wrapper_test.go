@@ -14,6 +14,7 @@ import (
 )
 
 const sample = "http://example.com/foo"
+
 var ri = &ReqInfo{}
 
 func TestWithoutAuth(t *testing.T) {
@@ -91,9 +92,9 @@ func TestWithValidRemoteIP(t *testing.T) {
 	req.RemoteAddr = "10.0.0.12:64564"
 
 	assert.Equal(t, getIP(req), "10.0.0.12:64564")
-	clientIP,clientPort,_ := net.SplitHostPort(getIP(req))
-	assert.Equal(t,clientIP, "10.0.0.12")
-	assert.Equal(t,clientPort, "64564")
+	clientIP, clientPort, _ := net.SplitHostPort(getIP(req))
+	assert.Equal(t, clientIP, "10.0.0.12")
+	assert.Equal(t, clientPort, "64564")
 }
 
 func TestHeaderWithValue(t *testing.T) {

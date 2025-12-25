@@ -16,7 +16,6 @@ var cfg aws.Config
 var cfgTime time.Time = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func awsSession(ctx context.Context, region *string) aws.Config {
-	//var cfg aws.Config
 	var err error
 
 	secs := time.Since(cfgTime).Seconds()
@@ -26,7 +25,8 @@ func awsSession(ctx context.Context, region *string) aws.Config {
 
 	// only allow an increasing amount to skip this so we do not suddenly hammer imds endpoint and slow everything down
 	// aws-sdk refreshs token 5min before expired, so we need to skip this atleast once in the 5min timeframe
-	if rand.Float64() * secs < 60 && secs < 250 {
+	//nolint:gosec
+	if rand.Float64()*secs < 60 && secs < 250 {
 		return cfg
 	}
 
@@ -37,7 +37,7 @@ func awsSession(ctx context.Context, region *string) aws.Config {
 	if region != nil {
 		opts = append(opts, awsconfig.WithRegion(*region))
 	}
-	//opts = append(opts, awsconfig.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponseWithBody))
+	// opts = append(opts, awsconfig.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponseWithBody))
 
 	cfg, err = awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {

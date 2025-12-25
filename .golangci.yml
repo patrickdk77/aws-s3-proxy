@@ -14,7 +14,6 @@ linters:
     - misspell
     - nakedret
     - prealloc
-    - staticcheck
     - unconvert
     - unused
   settings:
@@ -24,10 +23,15 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 3
+    govet:
+      enable:
+        - shadow
     misspell:
       locale: US
     nakedret:
       max-func-lines: 30
+    unused:
+      exported-is-used: true
   exclusions:
     generated: lax
     presets:

@@ -189,10 +189,7 @@ func splitCsvLine(data string) []string {
 }
 
 func isValidJwt(r *http.Request, ri *ReqInfo) bool {
-	value := false
-	if len(config.Config.JwtSecretKey) == 0 {
-		value = true
-	}
+	value := len(config.Config.JwtSecretKey) == 0
 	reqToken := r.Header.Get("Authorization")
 	if len(config.Config.JwtHeader) > 0 {
 		reqToken = r.Header.Get(config.Config.JwtHeader)

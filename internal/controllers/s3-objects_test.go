@@ -17,7 +17,7 @@ func TestSortByS3objects1(t *testing.T) {
 }
 
 func TestSortByS3objects2(t *testing.T) {
-	expected := s3objects([]s3item{{file: "/10"}, {file: "/20"}, {file: "/101"}})
+	expected := s3objects([]s3item{{file: "/10"}, {file: "/101"}, {file: "/20"}})
 
 	actual := s3objects([]s3item{{file: "/20"}, {file: "/101"}, {file: "/10"}})
 	sort.Sort(actual)

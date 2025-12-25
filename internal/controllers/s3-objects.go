@@ -71,5 +71,11 @@ func (s s3objects) Less(i, j int) bool {
 			}
 		}
 	}
+	if config.Config.SortFileAsc {
+		return len(irs) < len(jrs)
+	}
+	if config.Config.SortFileAsc {
+		return len(irs) > len(jrs)
+	}
 	return false
 }
