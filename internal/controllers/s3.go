@@ -3,23 +3,42 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-openapi/swag/typeutils"
+	"github.com/karlseguin/ccache/v3"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/metrics"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
+
+var (
+	httpCache     *ccache.Cache[cachedResponse]
+	cacheOnce     sync.Once
+	NewClientFunc = service.NewClient
+)
+
+type cachedResponse struct {
+	*s3.GetObjectOutput
+	Body        []byte
+	ContentType string
+	Exists      bool
+}
+
+type ObjectOutput interface {
+	s3.GetObjectOutput | s3.HeadObjectOutput
+}
 
 // AwsS3 handles requests for Amazon S3
 func AwsS3(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +56,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		rangeHeader = aws.String(candidate)
 	}
 
-	client := service.NewClient(r.Context(), aws.String(config.Config.AwsRegion))
+	client := NewClientFunc(r.Context(), aws.String(config.Config.AwsRegion))
 
 	// Replace path with symlink.json
 	idx := strings.Index(path, "symlink.json")
@@ -50,12 +69,50 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		}
 		path = aws.ToString(replaced) + path[idx+12:]
 	}
+
+	if c.CacheSize > 0 && c.CacheTTL > 0 && rangeHeader == nil {
+		cacheOnce.Do(func() {
+			httpCache = ccache.New(ccache.Configure[cachedResponse]().MaxSize(c.CacheSize))
+		})
+	}
+
 	// Ends with / -> listing or index.html
 	if strings.HasSuffix(path, "/") {
 		if c.DirectoryListing {
-			if !c.DirListingCheckIndex || !client.S3exists(r.Context(), c.S3Bucket, c.S3KeyPrefix+path+c.IndexDocument) {
-				s3listFiles(w, r, client, c.S3Bucket, c.S3KeyPrefix+path)
-				return
+			cacheKey := "IndexCache:=" + c.S3KeyPrefix + path
+			var item *ccache.Item[cachedResponse]
+			if httpCache != nil {
+				item = httpCache.Get(cacheKey)
+			}
+			if item != nil && !item.Expired() {
+				val := item.Value()
+				if !val.Exists {
+					w.Header().Set("Content-Type", val.ContentType)
+					_, _ = w.Write(val.Body)
+					return
+				}
+			} else {
+				if !c.DirListingCheckIndex || !client.S3exists(r.Context(), c.S3Bucket, c.S3KeyPrefix+path+c.IndexDocument) {
+					obj, err := s3listFiles(r, client, c.S3Bucket, c.S3KeyPrefix+path)
+					if err != nil {
+						if obj.Exists {
+							http.Error(w, err.Error(), http.StatusInternalServerError)
+						} else {
+							code, message := toHTTPError(err)
+							http.Error(w, message, code)
+						}
+						return
+					}
+					obj.Exists = false
+					httpCache.Set(cacheKey, obj, c.CacheTTLIndex)
+					w.Header().Set("Content-Type", obj.ContentType)
+					_, _ = w.Write(obj.Body)
+					return
+				} else {
+					obj := cachedResponse{Exists: true}
+					httpCache.Set(cacheKey, obj, c.CacheTTLIndex)
+
+				}
 			}
 		}
 		path += c.IndexDocument
@@ -64,53 +121,111 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		// Get a S3 object
-		obj, err := client.S3get(r.Context(), c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
-		metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
-		if err != nil {
-			code, message := toHTTPError(err)
-			if (code == 404 || code == 403) && c.SPA && !strings.Contains(path, c.IndexDocument) {
-				idx := strings.LastIndex(path, "/")
-				if idx > -1 {
-					indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
-					var indexError error
-					obj, indexError = client.S3get(r.Context(), c.S3Bucket, indexPath, rangeHeader)
-					if indexError != nil {
-						code, message = toHTTPError(indexError)
-						http.Error(w, message, code)
-						return
+		var obj *s3.GetObjectOutput
+		var err error
+
+		cacheKey := c.S3KeyPrefix + path
+		var item *ccache.Item[cachedResponse]
+		if httpCache != nil {
+			item = httpCache.Get(cacheKey)
+		}
+
+		if item != nil && !item.Expired() {
+			val := item.Value()
+			obj = val.GetObjectOutput
+			obj.Body = io.NopCloser(bytes.NewReader(val.Body))
+		} else {
+			obj, err = client.S3get(r.Context(), c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
+			metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
+			if err != nil {
+				code, message := toHTTPError(err)
+				if (code == 404 || code == 403) && c.SPA && !strings.Contains(path, c.IndexDocument) {
+					idx := strings.LastIndex(path, "/")
+					if idx > -1 {
+						indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
+						var indexError error
+						obj, indexError = client.S3get(r.Context(), c.S3Bucket, indexPath, rangeHeader)
+						if indexError != nil {
+							code, message = toHTTPError(indexError)
+							http.Error(w, message, code)
+							return
+						}
 					}
+				} else {
+					http.Error(w, message, code)
+					return
 				}
-			} else {
-				http.Error(w, message, code)
-				return
+			}
+			if httpCache != nil && err == nil && aws.ToInt64(obj.ContentLength) <= c.CacheMaxFileSize {
+				buf := new(bytes.Buffer)
+				_, err := io.Copy(buf, obj.Body)
+				if err == nil {
+					obj.Body.Close()
+					bodyBytes := buf.Bytes()
+					obj.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+					// Calculate TTL
+					ttl := c.CacheTTL
+					if obj.CacheControl != nil {
+						matches := regexp.MustCompile(`max-age=(\d+)`).FindStringSubmatch(*obj.CacheControl)
+						if len(matches) == 2 {
+							if seconds, err := strconv.Atoi(matches[1]); err == nil {
+								if time.Duration(seconds)*time.Second < ttl {
+									ttl = time.Duration(seconds) * time.Second
+								}
+							}
+						}
+					}
+
+					httpCache.Set(cacheKey, cachedResponse{
+						GetObjectOutput: obj,
+						Body:            bodyBytes,
+					}, ttl)
+				}
 			}
 		}
 		setHeadersFromAwsResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
+		w.WriteHeader(determineHTTPStatus(obj))
 		_, _ = io.Copy(w, obj.Body) // nolint
 	case "HEAD":
 		// Head a S3 object
-		obj, err := client.S3head(r.Context(), c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
-		// metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
-		if err != nil {
-			code, message := toHTTPError(err)
-			if (code == 404 || code == 403) && c.SPA && !strings.Contains(path, c.IndexDocument) {
-				idx := strings.LastIndex(path, "/")
-				if idx > -1 {
-					indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
-					var indexError error
-					obj, indexError = client.S3head(r.Context(), c.S3Bucket, indexPath, rangeHeader)
-					if indexError != nil {
-						code, message = toHTTPError(indexError)
-						http.Error(w, message, code)
-						return
+		var obj interface{}
+		var err error
+
+		cacheKey := c.S3KeyPrefix + path
+		var item *ccache.Item[cachedResponse]
+		if httpCache != nil {
+			item = httpCache.Get(cacheKey)
+		}
+
+		if item != nil && !item.Expired() {
+			val := item.Value()
+			obj = val.GetObjectOutput
+		} else {
+			obj, err = client.S3head(r.Context(), c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
+			// metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
+			if err != nil {
+				code, message := toHTTPError(err)
+				if (code == 404 || code == 403) && c.SPA && !strings.Contains(path, c.IndexDocument) {
+					idx := strings.LastIndex(path, "/")
+					if idx > -1 {
+						indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
+						var indexError error
+						obj, indexError = client.S3head(r.Context(), c.S3Bucket, indexPath, rangeHeader)
+						if indexError != nil {
+							code, message = toHTTPError(indexError)
+							http.Error(w, message, code)
+							return
+						}
 					}
+				} else {
+					http.Error(w, message, code)
+					return
 				}
-			} else {
-				http.Error(w, message, code)
-				return
 			}
 		}
-		setHeadersFromAwsHeadResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
+		setHeadersFromAwsResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
+		w.WriteHeader(http.StatusOK)
 	default:
 		// return method not allowed, 405
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -137,39 +252,73 @@ func replacePathWithSymlink(r *http.Request, client service.AWS, bucket, symlink
 	return aws.String(link.URL), nil
 }
 
-func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, httpCacheControl, httpExpires string) {
+func setHeadersFromAwsResponse(w http.ResponseWriter, obj interface{}, httpCacheControl, httpExpires string) {
+	v := reflect.ValueOf(obj)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// Helper functions to get fields safely via reflection
+	getString := func(fieldName string) *string {
+		f := v.FieldByName(fieldName)
+		if f.IsValid() && !f.IsNil() && f.Type() == reflect.TypeOf((*string)(nil)) {
+			return f.Interface().(*string)
+		}
+		return nil
+	}
+	getTime := func(fieldName string) *time.Time {
+		f := v.FieldByName(fieldName)
+		if f.IsValid() && !f.IsNil() && f.Type() == reflect.TypeOf((*time.Time)(nil)) {
+			return f.Interface().(*time.Time)
+		}
+		return nil
+	}
+	getInt64 := func(fieldName string) *int64 {
+		f := v.FieldByName(fieldName)
+		if f.IsValid() && !f.IsNil() && f.Type() == reflect.TypeOf((*int64)(nil)) {
+			return f.Interface().(*int64)
+		}
+		return nil
+	}
 
 	// Cache-Control
 	if len(httpCacheControl) > 0 {
 		setStrHeader(w, "Cache-Control", &httpCacheControl)
 	} else {
-		setStrHeader(w, "Cache-Control", obj.CacheControl)
+		setStrHeader(w, "Cache-Control", getString("CacheControl"))
 	}
 	// Expires
 	if len(httpExpires) > 0 {
 		setStrHeader(w, "Expires", &httpExpires)
-	} else if obj.ExpiresString != nil {
-		setStrHeader(w, "Expires", obj.ExpiresString)
+	} else {
+		// Try ExpiresString first (if it exists in generic object), then Expires
+		if s := getString("ExpiresString"); s != nil {
+			setStrHeader(w, "Expires", s)
+		}
 	}
-	setStrHeader(w, "Content-Encoding", obj.ContentEncoding)
-	setStrHeader(w, "Content-Language", obj.ContentLanguage)
+	setStrHeader(w, "Content-Encoding", getString("ContentEncoding"))
+	setStrHeader(w, "Content-Language", getString("ContentLanguage"))
 
 	if len(w.Header().Get("Content-Encoding")) == 0 {
-		setIntHeader(w, "Content-Length", obj.ContentLength)
+		setIntHeader(w, "Content-Length", getInt64("ContentLength"))
 	}
-	setStrHeader(w, "Content-Range", obj.ContentRange)
+	setStrHeader(w, "Content-Range", getString("ContentRange"))
+
+	contentType := getString("ContentType")
 	if config.Config.ContentType == "" {
-		setStrHeader(w, "Content-Type", obj.ContentType)
+		setStrHeader(w, "Content-Type", contentType)
 	} else {
 		setStrHeader(w, "Content-Type", &config.Config.ContentType)
 	}
+
+	contentDisposition := getString("ContentDisposition")
 	if config.Config.ContentDisposition == "" {
-		setStrHeader(w, "Content-Disposition", obj.ContentDisposition)
+		setStrHeader(w, "Content-Disposition", contentDisposition)
 	} else {
 		setStrHeader(w, "Content-Disposition", &config.Config.ContentDisposition)
 	}
-	setStrHeader(w, "ETag", obj.ETag)
-	setTimeHeader(w, "Last-Modified", obj.LastModified)
+	setStrHeader(w, "ETag", getString("ETag"))
+	setTimeHeader(w, "Last-Modified", getTime("LastModified"))
 
 	// Location, rewrite to our own
 	if len(w.Header().Get("Location")) > 0 {
@@ -179,53 +328,6 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj *s3.GetObjectOutput, h
 			setStrHeader(w, "Location", &path)
 		}
 	}
-
-	w.WriteHeader(determineHTTPStatus(obj))
-}
-
-func setHeadersFromAwsHeadResponse(w http.ResponseWriter, obj *s3.HeadObjectOutput, httpCacheControl, httpExpires string) {
-
-	// Cache-Control
-	if len(httpCacheControl) > 0 {
-		setStrHeader(w, "Cache-Control", &httpCacheControl)
-	} else {
-		setStrHeader(w, "Cache-Control", obj.CacheControl)
-	}
-	// Expires
-	if len(httpExpires) > 0 {
-		setStrHeader(w, "Expires", &httpExpires)
-	} else if obj.ExpiresString != nil {
-		setStrHeader(w, "Expires", obj.ExpiresString)
-	}
-	setStrHeader(w, "Content-Encoding", obj.ContentEncoding)
-	setStrHeader(w, "Content-Language", obj.ContentLanguage)
-
-	if len(w.Header().Get("Content-Encoding")) == 0 {
-		setIntHeader(w, "Content-Length", obj.ContentLength)
-	}
-	if config.Config.ContentType == "" {
-		setStrHeader(w, "Content-Type", obj.ContentType)
-	} else {
-		setStrHeader(w, "Content-Type", &config.Config.ContentType)
-	}
-	if config.Config.ContentDisposition == "" {
-		setStrHeader(w, "Content-Disposition", obj.ContentDisposition)
-	} else {
-		setStrHeader(w, "Content-Disposition", &config.Config.ContentDisposition)
-	}
-	setStrHeader(w, "ETag", obj.ETag)
-	setTimeHeader(w, "Last-Modified", obj.LastModified)
-
-	// Location, rewrite to our own
-	if len(w.Header().Get("Location")) > 0 {
-		l, err := url.Parse(w.Header().Get("Location"))
-		if err == nil && strings.Contains(l.Host, config.Config.S3Bucket) {
-			path := l.RequestURI()
-			setStrHeader(w, "Location", &path)
-		}
-	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func setStrHeader(w http.ResponseWriter, key string, value *string) {
@@ -246,43 +348,45 @@ func setTimeHeader(w http.ResponseWriter, key string, value *time.Time) {
 	}
 }
 
-func s3listFiles(w http.ResponseWriter, r *http.Request, client service.AWS, bucket, prefix string) {
+func s3listFiles(r *http.Request, client service.AWS, bucket, prefix string) (cachedResponse, error) {
 	prefix = strings.TrimPrefix(prefix, "/")
 
 	result, err := client.S3listObjects(r.Context(), bucket, prefix)
 	metrics.UpdateS3Reads(err, metrics.ListObjectAction, metrics.ProxySource)
 	if err != nil {
-		code, message := toHTTPError(err)
-		http.Error(w, message, code)
-		return
+		return cachedResponse{}, err
 	}
 	files := convertToMaps(result, prefix)
 
 	// Output as a HTML
 	if strings.EqualFold(config.Config.DirListingFormat, "html") {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprintln(w, toHTML(files))
-		return
+		return cachedResponse{
+			Body:        []byte(toHTML(files)),
+			ContentType: "text/html; charset=utf-8",
+		}, nil
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "apache") {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintln(w, toApache(prefix, files))
-		return
+		return cachedResponse{
+			Body:        []byte(toApache(prefix, files)),
+			ContentType: "text/html; charset=utf-8",
+		}, nil
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "shtml") {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintln(w, toSimpleHTML(files))
-		return
+		return cachedResponse{
+			Body:        []byte(toSimpleHTML(files)),
+			ContentType: "text/html; charset=utf-8",
+		}, nil
 	}
 
 	// Output as a JSON
 	jsonBytes, merr := json.Marshal(files)
 	if merr != nil {
-		http.Error(w, merr.Error(), http.StatusInternalServerError)
-		return
+		return cachedResponse{Exists: true}, merr
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = fmt.Fprintln(w, string(jsonBytes))
+	return cachedResponse{
+		Body:        jsonBytes,
+		ContentType: "application/json; charset=utf-8",
+	}, nil
 }
 
 func convertToMaps(s3output *s3.ListObjectsV2Output, prefix string) s3objects {

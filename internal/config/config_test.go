@@ -50,6 +50,8 @@ func defaultConfig() *config {
 		SortFileAsc:          true,
 		TimeoutRead:          time.Duration(60) * time.Second,
 		TimeoutWrite:         time.Duration(600) * time.Second,
+		CacheTTL:             time.Duration(60) * time.Second,
+		CacheTTLIndex:        time.Duration(60) * time.Second,
 	}
 }
 

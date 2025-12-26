@@ -65,8 +65,13 @@ type config struct { // nolint
 	SortDateDesc         bool          // Sort by Date Desc
 	SortFileAsc          bool          // Sort by File Asc
 	SortFileDesc         bool          // Sort by File Desc
+	SortNumeric          bool          // Sort by Numeric Filenames
 	TimeoutRead          time.Duration // Timeout on reads (uploads)
 	TimeoutWrite         time.Duration // Timeout on writes (downloads)
+	CacheSize            int64         // CACHE_SIZE
+	CacheTTL             time.Duration // CACHE_TTL
+	CacheTTLIndex        time.Duration // CACHE_TTL_INDEX
+	CacheMaxFileSize     int64         // CACHE_MAX_FILE_SIZE
 }
 
 // Setup configurations with environment variables
@@ -131,20 +136,24 @@ func Setup() {
 	sortDateAsc := false
 	sortFileAsc := true
 	sortFileDesc := false
+	sortNumeric := false
 	if s := os.Getenv("SORT"); len(s) > 0 {
 		switch s {
 		case "datedesc":
 			sortDateDesc = true
-			sortDateAsc = false
+			sortFileAsc = false
 		case "filedesc":
-			sortDateDesc = true
-			sortDateAsc = false
+			sortFileDesc = true
+			sortFileAsc = false
 		case "dateasc":
 			sortDateAsc = true
-			sortDateDesc = false
-		default:
-			sortDateAsc = true
-			sortDateDesc = false
+			sortFileAsc = false
+		case "numberdesc":
+			sortFileDesc = false
+			sortFileAsc = false
+			sortNumeric = true
+		case "numberasc":
+			sortNumeric = true
 		}
 	}
 	timeoutRead := time.Duration(60) * time.Second
@@ -154,6 +163,22 @@ func Setup() {
 	timeoutWrite := time.Duration(600) * time.Second
 	if b, err := strconv.ParseInt(os.Getenv("GET_TIMEOUT"), 10, 64); err == nil {
 		timeoutWrite = time.Duration(b) * time.Second
+	}
+	cacheSize := int64(0)
+	if b, err := strconv.ParseInt(os.Getenv("CACHE_SIZE"), 10, 64); err == nil {
+		cacheSize = b * 1024 * 1024
+	}
+	cacheTTL := time.Duration(60) * time.Second
+	if b, err := strconv.ParseInt(os.Getenv("CACHE_TTL"), 10, 64); err == nil {
+		cacheTTL = time.Duration(b) * time.Second
+	}
+	cacheTTLIndex := time.Duration(60) * time.Second
+	if b, err := strconv.ParseInt(os.Getenv("CACHE_TTL_INDEX"), 10, 64); err == nil {
+		cacheTTLIndex = time.Duration(b) * time.Second
+	}
+	cacheMaxFileSize := cacheSize / 4
+	if b, err := strconv.ParseInt(os.Getenv("CACHE_MAX_FILE_SIZE"), 10, 64); err == nil {
+		cacheMaxFileSize = b * 1024 * 1024
 	}
 
 	whiteListIPRanges := []*net.IPNet{}
@@ -221,8 +246,13 @@ func Setup() {
 		SortDateDesc:         sortDateDesc,
 		SortFileAsc:          sortFileAsc,
 		SortFileDesc:         sortFileDesc,
+		SortNumeric:          sortNumeric,
 		TimeoutRead:          timeoutRead,
 		TimeoutWrite:         timeoutWrite,
+		CacheSize:            cacheSize,
+		CacheTTL:             cacheTTL,
+		CacheTTLIndex:        cacheTTLIndex,
+		CacheMaxFileSize:     cacheMaxFileSize,
 	}
 
 	// Proxy

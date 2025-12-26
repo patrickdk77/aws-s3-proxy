@@ -58,9 +58,14 @@ WHITELIST_IP_RANGES       | commma separated list of IPs and IP ranges.       | 
 CONTENT_TYPE              | Override the default Content-Type response header |          | -
 CONTENT_DISPOSITION       | Override the default Content-Disposition response header |          | -
 USERNAME_HEADER           | Username Header name, for cloudflare Cf-Access-Authenticated-User-Email |          | -
-SORT                      | Sorts file listing (datedesc, dateasc, fileasc, filedesc) |          | fileasc
+SORT                      | Sorts file listing (datedesc, dateasc, fileasc, filedesc, numberasc, numberdesc) |          | fileasc
 POST_TIMEOUT              | Timeout for reads (uploads) in seconds            |          | 60
 GET_TIMEOUT               | Timeout for writes, responses, in seconds         |          | 600
+CACHE_SIZE                | Cache size in MB                                  |          | 0
+CACHE_TTL                 | Cache time to live in seconds                     |          | 60
+CACHE_TTL_INDEX           | Cache time to live in seconds for index files     |          | 60
+CACHE_MAX_FILE_SIZE       | Max File size in MB to cache                      |          | CACHE_SIZE / 4
+
 
 ### 2. Run the application
 

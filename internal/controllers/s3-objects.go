@@ -47,7 +47,15 @@ func (s s3objects) Less(i, j int) bool {
 	max := len(irs)
 	if max > len(jrs) {
 		max = len(jrs)
+		if config.Config.SortNumeric {
+			return config.Config.SortFileDesc
+		}
+	} else if max < len(jrs) {
+		if config.Config.SortNumeric {
+			return config.Config.SortFileAsc
+		}
 	}
+
 	for idx := 0; idx < max; idx++ {
 		ir := irs[idx]
 		jr := jrs[idx]
@@ -71,11 +79,11 @@ func (s s3objects) Less(i, j int) bool {
 			}
 		}
 	}
-	if config.Config.SortFileAsc {
-		return len(irs) < len(jrs)
+	if len(irs) < len(jrs) {
+		return config.Config.SortFileAsc
 	}
-	if config.Config.SortFileAsc {
-		return len(irs) > len(jrs)
+	if len(irs) > len(jrs) {
+		return config.Config.SortFileDesc
 	}
 	return false
 }
