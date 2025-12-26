@@ -104,11 +104,13 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 					obj.Exists = false
-					httpCache.Set(cacheKey, obj, c.CacheTTLIndex)
+					if httpCache != nil {
+						httpCache.Set(cacheKey, obj, c.CacheTTLIndex)
+					}
 					w.Header().Set("Content-Type", obj.ContentType)
 					_, _ = w.Write(obj.Body)
 					return
-				} else {
+				} else if httpCache != nil {
 					obj := cachedResponse{Exists: true}
 					httpCache.Set(cacheKey, obj, c.CacheTTLIndex)
 
