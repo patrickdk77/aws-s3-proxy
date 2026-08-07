@@ -8,12 +8,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/patrickdk77/aws-s3-proxy/internal/logwriter"
 )
 
 // Config represents its configurations
 var (
-	Config    *config
-	AccessLog *log.Logger
+	Config          *config
+	AccessLog       *log.Logger
+	AccessLogWriter *logwriter.Writer
 )
 
 func init() {
@@ -276,7 +279,26 @@ func Setup() {
 		log.Printf("[config] WhiteListIPRanges enabled: %v", Config.WhiteListIPRanges)
 	}
 	if Config.AccessLog {
-		AccessLog = log.New(os.Stdout, "", 0)
+		// Written through a non-blocking wrapper rather than
+		// straight to os.Stdout. accessLog() is called after the
+		// handler has filled the response but before the handler
+		// returns, and net/http only flushes to the socket once
+		// the handler returns. A blocking write to a full
+		// container log pipe would therefore strand an
+		// already-written response, leaving the connection
+		// accepted but never answered. log.Logger also
+		// serializes on a mutex, so one stuck goroutine would
+		// hold up every other request reaching the access log.
+		AccessLogWriter = logwriter.New(os.Stdout, 0)
+		AccessLog = log.New(AccessLogWriter, "", 0)
+	}
+}
+
+// FlushAccessLog writes any queued access log lines and stops the
+// background writer. Call it before exiting.
+func FlushAccessLog() {
+	if AccessLogWriter != nil {
+		_ = AccessLogWriter.Close()
 	}
 }
 

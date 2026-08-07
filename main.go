@@ -56,11 +56,16 @@ func main() {
 		Addr:              addr,
 		Handler:           &slashFix{httpMux},
 	}
+	var srvErr error
 	if (len(config.Config.SslCert) > 0) && (len(config.Config.SslKey) > 0) {
-		log.Fatal(s.ListenAndServeTLS(config.Config.SslCert, config.Config.SslKey))
+		srvErr = s.ListenAndServeTLS(config.Config.SslCert, config.Config.SslKey)
 	} else {
-		log.Fatal(s.ListenAndServe())
+		srvErr = s.ListenAndServe()
 	}
+	// Access log lines are queued and written by a background
+	// goroutine, so drain them before log.Fatal calls os.Exit.
+	config.FlushAccessLog()
+	log.Fatal(srvErr)
 }
 
 func validateAwsConfigurations() {
