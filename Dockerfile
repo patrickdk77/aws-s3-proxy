@@ -17,11 +17,13 @@ RUN export GOPROXY=direct \
  && go mod download \
  && go mod verify \
  && CGO_ENABLED=0 go build \
-    -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
-    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o /health ./healthcheck \
+    -ldflags "-s -w -X main.ver=${BUILD_VERSION} \
+    -X main.commit=${BUILD_REF} \
+    -X main.date=${BUILD_DATE}" -o /health ./healthcheck \
  && CGO_ENABLED=0 go build \
-    -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
-    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o /app
+    -ldflags "-s -w -X main.ver=${BUILD_VERSION} \
+    -X main.commit=${BUILD_REF} \
+    -X main.date=${BUILD_DATE}" -o /app
 
 FROM alpine AS libs
 RUN apk --no-cache add ca-certificates

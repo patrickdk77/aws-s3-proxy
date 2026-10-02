@@ -2,7 +2,7 @@ BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 SHA1 := $(shell git rev-parse HEAD)
 SHORT_SHA1 := $(shell git rev-parse --short HEAD)
 ORIGIN := $(shell git remote get-url origin)
-DATE := $(date -u +'%Y-%m-%dT%H:%M:%Sz')
+DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%Sz')
 VER := $(shell git describe --tags --abbrev=0)
 DOCK_REPO := patrickdk/s3-proxy
 
@@ -28,7 +28,7 @@ buildx:
 	docker buildx build --pull --push \
 		--platform linux/amd64,linux/arm64 \
 		--build-arg BUILD_GOOS=linux \
-		--build-arg BUILD_DATE=${BUILD_DATE} \
+		--build-arg BUILD_DATE=$(DATE) \
 		--build-arg BUILD_REF=${GIT_SHORT_SHA1} \
 		--build-arg BUILD_VERSION=${GIT_VERSION} \
 		--build-arg BUILD_REPO=${BUILD_REPO} \
