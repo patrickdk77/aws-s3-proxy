@@ -14,21 +14,35 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
 type fakeAWS struct {
-	err error
+	err  error
+	key  string
+	body *closeTracker
 }
 
-func (f *fakeAWS) S3get(context.Context, string, string,
-	*string) (*s3.GetObjectOutput, error) {
+type closeTracker struct {
+	io.Reader
+	closed bool
+}
+
+func (c *closeTracker) Close() error {
+	c.closed = true
+	return nil
+}
+
+func (f *fakeAWS) S3get(_ context.Context, _, key string,
+	_ *string) (*s3.GetObjectOutput, error) {
+	f.key = key
 	if f.err != nil {
 		return nil, f.err
 	}
-	body := io.NopCloser(bytes.NewReader([]byte("ok")))
-	return &s3.GetObjectOutput{Body: body}, nil
+	f.body = &closeTracker{Reader: bytes.NewReader([]byte("ok"))}
+	return &s3.GetObjectOutput{Body: f.body}, nil
 }
 
 func (f *fakeAWS) S3head(context.Context, string, string,
@@ -87,4 +101,32 @@ func TestHealthcheckNoSuchKeyHealthy(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code)
 	assert.True(t, res.S3Bucket.Healthy)
 	assert.Empty(t, res.S3Bucket.Error)
+}
+
+func TestHealthcheckClosesBody(t *testing.T) {
+	f := &fakeAWS{}
+	code, res := health(t, f)
+	assert.Equal(t, http.StatusOK, code)
+	assert.True(t, res.S3Bucket.Healthy)
+	if assert.NotNil(t, f.body) {
+		assert.True(t, f.body.closed)
+	}
+}
+
+func TestHealthcheckUsesKeyPrefix(t *testing.T) {
+	restoreConfig(t)
+	config.Config.S3KeyPrefix = "site"
+	config.Config.HealthCheckPath = "/healthz"
+	f := &fakeAWS{err: &smithy.GenericAPIError{Code: "NoSuchKey"}}
+	health(t, f)
+	assert.Equal(t, "site/healthz", f.key)
+}
+
+func TestHealthcheckNoPrefix(t *testing.T) {
+	restoreConfig(t)
+	config.Config.S3KeyPrefix = ""
+	config.Config.HealthCheckPath = "/healthz"
+	f := &fakeAWS{err: &smithy.GenericAPIError{Code: "NoSuchKey"}}
+	health(t, f)
+	assert.Equal(t, "/healthz", f.key)
 }

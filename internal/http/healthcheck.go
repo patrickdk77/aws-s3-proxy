@@ -35,11 +35,14 @@ type HealthcheckResponse struct {
 }
 
 func executeHealthCheck(ctx context.Context, awsClient service.AWS) error {
-	_, err := awsClient.S3get(ctx, config.Config.S3Bucket, config.Config.HealthCheckPath, nil)
+	c := config.Config
+	obj, err := awsClient.S3get(ctx, c.S3Bucket,
+		c.S3KeyPrefix+c.HealthCheckPath, nil)
 
 	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.HealthcheckSource)
 	// if file exists, return ok
 	if err == nil {
+		_ = obj.Body.Close()
 		return nil
 	}
 	// we have some kind of error. Normally we accept the 404 key not found because it means that we are able
