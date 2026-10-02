@@ -78,6 +78,9 @@ func validateAwsConfigurations() {
 	if len(os.Getenv("AWS_S3_BUCKET")) == 0 {
 		log.Fatal("Missing required environment variable: AWS_S3_BUCKET")
 	}
+	if _, err := service.AWSConfig(); err != nil {
+		log.Fatalf("[service] loading AWS config: %v", err)
+	}
 	if typeutils.IsZero(config.Config.AwsRegion) {
 		config.Config.AwsRegion = "us-east-1"
 		if region, err := service.GuessBucketRegion(config.Config.S3Bucket); err == nil {

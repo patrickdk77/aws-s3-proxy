@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -21,13 +22,32 @@ type client struct {
 	*s3.Client
 }
 
+var clients sync.Map
+
 // NewClient returns new AWS client
 func NewClient(ctx context.Context, region *string) AWS {
-	cfg := awsSession(ctx, region)
-	return client{Context: ctx, Client: s3.NewFromConfig(cfg, func(o *s3.Options) {
-		if len(config.Config.AwsAPIEndpoint) > 0 {
-			o.BaseEndpoint = aws.String(config.Config.AwsAPIEndpoint)
-			o.UsePathStyle = true
+	r := aws.ToString(region)
+	if c, ok := clients.Load(r); ok {
+		return client{Context: ctx, Client: c.(*s3.Client)}
+	}
+	cfg, err := AWSConfig()
+	if err != nil {
+		panic(err)
+	}
+	opts := func(o *s3.Options) {
+		if r != "" {
+			o.Region = r
 		}
-	})}
+		setEndpoint(o)
+		o.DisableLogOutputChecksumValidationSkipped = true
+	}
+	c, _ := clients.LoadOrStore(r, s3.NewFromConfig(cfg, opts))
+	return client{Context: ctx, Client: c.(*s3.Client)}
+}
+
+func setEndpoint(o *s3.Options) {
+	if ep := config.Config.AwsAPIEndpoint; ep != "" {
+		o.BaseEndpoint = aws.String(ep)
+		o.UsePathStyle = true
+	}
 }

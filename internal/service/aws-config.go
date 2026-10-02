@@ -3,50 +3,28 @@ package service
 import (
 	"context"
 	"crypto/tls"
-	"math/rand"
 	"net/http"
-	"time"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
 
-var cfg aws.Config
-var cfgTime time.Time = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+var (
+	cfgOnce sync.Once
+	cfg     aws.Config
+	cfgErr  error
+)
 
-func awsSession(ctx context.Context, region *string) aws.Config {
-	var err error
-
-	secs := time.Since(cfgTime).Seconds()
-	if secs < 65 { // Quick return
-		return cfg
-	}
-
-	// only allow an increasing amount to skip this so we do not suddenly hammer imds endpoint and slow everything down
-	// aws-sdk refreshs token 5min before expired, so we need to skip this atleast once in the 5min timeframe
-	//nolint:gosec
-	if rand.Float64()*secs < 60 && secs < 250 {
-		return cfg
-	}
-
-	opts := []func(*awsconfig.LoadOptions) error{
-		awsconfig.WithHTTPClient(configureClient()),
-	}
-
-	if region != nil {
-		opts = append(opts, awsconfig.WithRegion(*region))
-	}
-	// opts = append(opts, awsconfig.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponseWithBody))
-
-	cfg, err = awsconfig.LoadDefaultConfig(ctx, opts...)
-	if err != nil {
-		// handle error panic or log fatal
-		panic(err)
-	}
-
-	cfgTime = time.Now()
-	return cfg
+// AWSConfig loads the AWS configuration on first use.
+func AWSConfig() (aws.Config, error) {
+	cfgOnce.Do(func() {
+		cfg, cfgErr = awsconfig.LoadDefaultConfig(
+			context.Background(),
+			awsconfig.WithHTTPClient(configureClient()))
+	})
+	return cfg, cfgErr
 }
 
 func configureClient() *http.Client {
@@ -57,13 +35,14 @@ func configureClient() *http.Client {
 	if config.Config.InsecureTLS {
 		tlsCfg.InsecureSkipVerify = true
 	}
-	transport := &http.Transport{
-		Proxy:              http.ProxyFromEnvironment,
-		MaxIdleConns:       config.Config.MaxIdleConns,
-		IdleConnTimeout:    config.Config.IdleConnTimeout,
-		DisableCompression: config.Config.DisableCompression,
-		TLSClientConfig:    tlsCfg,
-	}
+	c := config.Config
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = c.MaxIdleConns
+	transport.MaxIdleConnsPerHost = c.MaxIdleConns
+	transport.IdleConnTimeout = c.IdleConnTimeout
+	transport.DisableCompression = c.DisableCompression
+	transport.TLSClientConfig = tlsCfg
+	transport.ForceAttemptHTTP2 = false
 	return &http.Client{
 		Transport: transport,
 	}

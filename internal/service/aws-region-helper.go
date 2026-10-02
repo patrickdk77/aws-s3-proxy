@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
-	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
 
 const bucketRegionHeader = "X-Amz-Bucket-Region"
@@ -22,16 +21,19 @@ const bucketRegionHeader = "X-Amz-Bucket-Region"
 func GuessBucketRegion(bucket string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cfg := awsSession(ctx, nil)
+	cfg, err := AWSConfig()
+	if err != nil {
+		return "", err
+	}
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		if len(config.Config.AwsAPIEndpoint) > 0 {
-			o.BaseEndpoint = aws.String(config.Config.AwsAPIEndpoint)
-			o.UsePathStyle = true
+		if o.Region == "" {
+			o.Region = "us-east-1"
 		}
+		setEndpoint(o)
 	})
 
 	var capture deserializeBucketRegion
-	_, err := client.HeadBucket(ctx, &s3.HeadBucketInput{
+	_, err = client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(bucket),
 	}, func(o *s3.Options) {
 		o.APIOptions = append(o.APIOptions, capture.RegisterMiddleware)
