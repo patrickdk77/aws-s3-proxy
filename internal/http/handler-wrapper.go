@@ -3,6 +3,7 @@ package http
 import (
 	"compress/gzip"
 	"compress/zlib"
+	"crypto/subtle"
 	"io"
 	"net"
 	"net/http"
@@ -160,8 +161,13 @@ func getIP(r *http.Request) string {
 
 func auth(r *http.Request, authUser, authPass []string, ri *ReqInfo) bool {
 	if username, password, ok := r.BasicAuth(); ok {
-		for i := 0; i < len(authUser); i++ {
-			if username == authUser[i] && password == authPass[i] {
+		n := min(len(authUser), len(authPass))
+		for i := 0; i < n; i++ {
+			u := subtle.ConstantTimeCompare(
+				[]byte(username), []byte(authUser[i]))
+			p := subtle.ConstantTimeCompare(
+				[]byte(password), []byte(authPass[i]))
+			if u&p == 1 {
 				ri.user = authUser[i]
 				return true
 			}
@@ -209,7 +215,10 @@ func isValidJwt(r *http.Request, ri *ReqInfo) bool {
 		secretKey := config.Config.JwtSecretKey
 		return []byte(secretKey), nil
 	})
-	claims := token.Claims.(jwt.MapClaims)
+	if token == nil {
+		return value
+	}
+	claims, _ := token.Claims.(jwt.MapClaims)
 	if len(config.Config.JwtUserField) > 0 {
 		if user, ok := claims[config.Config.JwtUserField].(string); ok {
 			ri.user = user

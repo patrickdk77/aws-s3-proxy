@@ -269,6 +269,13 @@ func Setup() {
 	// Basic authentication
 	if (len(Config.BasicAuthUser) > 0) && (len(Config.BasicAuthPass) > 0) {
 		log.Printf("[config] Basic authentication: %s", Config.BasicAuthUser)
+		users := len(Config.BasicAuthUser)
+		passwords := len(Config.BasicAuthPass)
+		if users != passwords {
+			log.Printf("[config] BASIC_AUTH_USER has %d "+
+				"entries but BASIC_AUTH_PASS has %d",
+				users, passwords)
+		}
 	}
 	// CORS
 	if (len(Config.CorsAllowOrigin) > 0) && (Config.CorsMaxAge > 0) {
