@@ -60,7 +60,7 @@ CONTENT_DISPOSITION       | Override the default Content-Disposition response he
 USERNAME_HEADER           | Username Header name, for cloudflare Cf-Access-Authenticated-User-Email |          | -
 SORT                      | Sorts file listing (datedesc, dateasc, fileasc, filedesc, numberasc, numberdesc) |          | fileasc
 POST_TIMEOUT              | Timeout for reads (uploads) in seconds            |          | 60
-GET_TIMEOUT               | Timeout for writes, responses, in seconds         |          | 600
+GET_TIMEOUT               | Timeout for writes, responses, in seconds. On SIGTERM the proxy waits this long for running downloads to finish. |          | 600
 CACHE_SIZE                | Cache size in MB                                  |          | 0
 CACHE_TTL                 | Cache time to live in seconds                     |          | 60
 CACHE_TTL_INDEX           | Cache time to live in seconds for index files     |          | 60

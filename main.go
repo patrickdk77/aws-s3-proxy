@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-openapi/swag/typeutils"
@@ -56,16 +60,48 @@ func main() {
 		Addr:              addr,
 		Handler:           &slashFix{httpMux},
 	}
-	var srvErr error
-	if (len(config.Config.SslCert) > 0) && (len(config.Config.SslKey) > 0) {
-		srvErr = s.ListenAndServeTLS(config.Config.SslCert, config.Config.SslKey)
-	} else {
-		srvErr = s.ListenAndServe()
+	c := config.Config
+	listen := s.ListenAndServe
+	if cert, key := c.SslCert, c.SslKey; cert != "" && key != "" {
+		listen = func() error {
+			return s.ListenAndServeTLS(cert, key)
+		}
 	}
+	ctx, stop := signal.NotifyContext(context.Background(),
+		os.Interrupt, syscall.SIGTERM)
+	srvErr := serve(ctx, s, c.TimeoutWrite, listen)
+	stop()
 	// Access log lines are queued and written by a background
 	// goroutine, so drain them before log.Fatal calls os.Exit.
 	config.FlushAccessLog()
-	log.Fatal(srvErr)
+	if srvErr != nil {
+		log.Fatal(srvErr)
+	}
+}
+
+func serve(ctx context.Context, s *http.Server,
+	grace time.Duration, listen func() error) error {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		<-ctx.Done()
+		log.Print("[service] shutting down")
+		sctx := context.WithoutCancel(ctx)
+		if grace > 0 {
+			dl, cancel := context.WithTimeout(sctx, grace)
+			defer cancel()
+			sctx = dl
+		}
+		if err := s.Shutdown(sctx); err != nil {
+			log.Printf("[service] shutdown: %v", err)
+		}
+	}()
+	err := listen()
+	if !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	<-done
+	return nil
 }
 
 func validateAwsConfigurations() {
