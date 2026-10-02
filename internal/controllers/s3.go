@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -383,7 +384,11 @@ func s3listFiles(r *http.Request, client service.AWS, bucket, prefix string) (ca
 	}
 
 	// Output as a JSON
-	jsonBytes, merr := json.Marshal(files)
+	names := make([]string, len(files))
+	for i, f := range files {
+		names[i] = f.file
+	}
+	jsonBytes, merr := json.Marshal(names)
 	if merr != nil {
 		return cachedResponse{Exists: true}, merr
 	}
@@ -421,7 +426,7 @@ func convertToMaps(s3output *s3.ListObjectsV2Output, prefix string) s3objects {
 func toHTML(files s3objects) string {
 	html := "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><ul>"
 	for _, file := range files {
-		html += "<li><a href=\"" + file.file + "\">" + file.file + "</a>"
+		html += "<li>" + anchor(file.file)
 		if !file.updatedAt.IsZero() {
 			html += " " + file.updatedAt.Format(time.RFC3339)
 		}
@@ -431,10 +436,11 @@ func toHTML(files s3objects) string {
 }
 
 func toApache(prefix string, files s3objects) string {
+	prefix = html.EscapeString(prefix)
 	html := "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Index of " + prefix + "</title></head>"
 	html += "<body><h1>Index of " + prefix + "</h1><pre><table><tr><th>Name</th><th>Last Modified</th><th>Size</th></tr>"
 	for _, file := range files {
-		html += "<tr><td><a href=\"" + file.file + "\">" + file.file + "</a></td>"
+		html += "<tr><td>" + anchor(file.file) + "</td>"
 		if !file.updatedAt.IsZero() {
 			html += "<td>" + file.updatedAt.Format(time.RFC3339) + "</td>"
 		} else {
@@ -467,7 +473,13 @@ func toSimpleHTML(files s3objects) string {
 
 	html := "<!DOCTYPE html><html><body>"
 	for _, file := range files {
-		html += "<a href=\"" + file.file + "\">" + file.file + "</a><br>"
+		html += anchor(file.file) + "<br>"
 	}
 	return html + "</body></html>"
+}
+
+func anchor(name string) string {
+	href := (&url.URL{Path: name}).String()
+	return `<a href="` + html.EscapeString(href) + `">` +
+		html.EscapeString(name) + "</a>"
 }
