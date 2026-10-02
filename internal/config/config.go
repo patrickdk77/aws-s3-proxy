@@ -307,7 +307,11 @@ func createIPNets(src []string) ([]*net.IPNet, error) {
 	for _, whiteListIPRange := range src {
 		if !strings.Contains(whiteListIPRange, "/") {
 			// Make range from single IP
-			whiteListIPRange = fmt.Sprintf("%s/32", whiteListIPRange)
+			mask := "/32"
+			if strings.Contains(whiteListIPRange, ":") {
+				mask = "/128"
+			}
+			whiteListIPRange += mask
 		}
 		_, subnet, err := net.ParseCIDR(whiteListIPRange)
 		if err != nil {

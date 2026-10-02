@@ -146,9 +146,10 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 func getIP(r *http.Request) string {
 	retIP := r.RemoteAddr
 	if len(config.Config.ForwardedFor) > 0 {
-		forwarded := r.Header.Get(config.Config.ForwardedFor)
-		for _, address := range strings.Split(forwarded, ",") {
-			address = strings.TrimSpace(address)
+		values := r.Header.Values(config.Config.ForwardedFor)
+		list := strings.Split(strings.Join(values, ","), ",")
+		for i := len(list) - 1; i >= 0; i-- {
+			address := strings.TrimSpace(list[i])
 			if address != "" {
 				return address
 			}
