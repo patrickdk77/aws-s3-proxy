@@ -1,10 +1,7 @@
 package http
 
 import (
-	"compress/gzip"
-	"compress/zlib"
 	"crypto/subtle"
-	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -122,28 +119,22 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			return
 		}
 		// Content-Encoding
-		ioWriter := w.(io.Writer)
-		if encodings, found := header(r, "Accept-Encoding"); found && c.ContentEncoding {
-			for _, encoding := range splitCsvLine(encodings) {
-				if encoding == "gzip" {
-					w.Header().Set("Content-Encoding", "gzip")
-					g := gzip.NewWriter(w)
-					defer g.Close()
-					ioWriter = g
-					break
-				}
-				if encoding == "deflate" {
-					w.Header().Set("Content-Encoding", "deflate")
-					z := zlib.NewWriter(w)
-					defer z.Close()
-					ioWriter = z
+		encoding := ""
+		if c.ContentEncoding {
+			w.Header().Add("Vary", "Accept-Encoding")
+			accept, _ := header(r, "Accept-Encoding")
+			for _, e := range splitCsvLine(accept) {
+				if e == "gzip" || e == "deflate" {
+					encoding = e
 					break
 				}
 			}
 		}
 		// Handle HTTP requests
-		writer := &custom{Writer: ioWriter, ResponseWriter: w, status: http.StatusOK}
+		writer := &custom{Writer: w, ResponseWriter: w,
+			status: http.StatusOK, encoding: encoding}
 		handler(writer, r)
+		_ = writer.Close()
 
 		ri.status = writer.status
 		ri.size = writer.Written

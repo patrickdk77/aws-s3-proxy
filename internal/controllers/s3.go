@@ -348,9 +348,7 @@ func setHeadersFromAwsResponse(w http.ResponseWriter, obj interface{}, httpCache
 	setStrHeader(w, "Content-Encoding", getString("ContentEncoding"))
 	setStrHeader(w, "Content-Language", getString("ContentLanguage"))
 
-	if len(w.Header().Get("Content-Encoding")) == 0 {
-		setIntHeader(w, "Content-Length", getInt64("ContentLength"))
-	}
+	setIntHeader(w, "Content-Length", getInt64("ContentLength"))
 	setStrHeader(w, "Content-Range", getString("ContentRange"))
 
 	contentType := getString("ContentType")
