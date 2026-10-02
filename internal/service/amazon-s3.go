@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -33,18 +35,17 @@ func (c client) S3head(ctx context.Context, bucket, key string, rangeHeader *str
 	return c.Client.HeadObject(ctx, req)
 }
 
-// S3exists returns true if a specified key exists in Amazon S3
+// S3exists returns false only when S3 reports the key missing
 func (c client) S3exists(ctx context.Context, bucket, key string) bool {
 	req := &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(strings.TrimLeft(key, "/")),
 	}
 
-	output, err := c.Client.HeadObject(ctx, req)
-	if err != nil {
-		return false
-	}
-	return output.ContentLength != nil && *output.ContentLength > 0
+	_, err := c.Client.HeadObject(ctx, req)
+	var re interface{ HTTPStatusCode() int }
+	return err == nil || !errors.As(err, &re) ||
+		re.HTTPStatusCode() != http.StatusNotFound
 }
 
 // S3listObjects returns a list of s3 objects
