@@ -23,6 +23,8 @@ import (
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
 
+const htmlContentType = "text/html; charset=utf-8"
+
 var (
 	httpCache     *ccache.Cache[cachedResponse]
 	cacheOnce     sync.Once
@@ -256,7 +258,7 @@ func replacePathWithSymlink(r *http.Request, client service.AWS, bucket, symlink
 
 func setHeadersFromAwsResponse(w http.ResponseWriter, obj interface{}, httpCacheControl, httpExpires string) {
 	v := reflect.ValueOf(obj)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -364,19 +366,19 @@ func s3listFiles(r *http.Request, client service.AWS, bucket, prefix string) (ca
 	if strings.EqualFold(config.Config.DirListingFormat, "html") {
 		return cachedResponse{
 			Body:        []byte(toHTML(files)),
-			ContentType: "text/html; charset=utf-8",
+			ContentType: htmlContentType,
 		}, nil
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "apache") {
 		return cachedResponse{
 			Body:        []byte(toApache(prefix, files)),
-			ContentType: "text/html; charset=utf-8",
+			ContentType: htmlContentType,
 		}, nil
 	}
 	if strings.EqualFold(config.Config.DirListingFormat, "shtml") {
 		return cachedResponse{
 			Body:        []byte(toSimpleHTML(files)),
-			ContentType: "text/html; charset=utf-8",
+			ContentType: htmlContentType,
 		}, nil
 	}
 

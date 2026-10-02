@@ -29,7 +29,9 @@ func main() {
 		c := &http.Client{
 			Timeout: 5 * time.Second,
 		}
-		resp, err := c.Get(fmt.Sprintf("%s://%s:%s%s", proto, host, port, health))
+		u := fmt.Sprintf("%s://%s:%s%s",
+			proto, host, port, health)
+		resp, err := c.Get(u) //nolint:gosec
 		if err != nil {
 			os.Exit(1)
 		}
