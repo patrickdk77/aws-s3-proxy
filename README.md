@@ -40,7 +40,7 @@ APP_HOST                  | The host name used to the listener                | 
 ACCESS_LOG                | Send access logs to /dev/stdout.                  |          | false
 FORWARDED_FOR             | Header that holds the client IP, e.g. X-Forwarded-For or Cf-Connecting-Ip. The proxy takes the last address in the header, the one your own load balancer appended. |          | -
 STRIP_PATH                | Strip path prefix.                                |          | -
-CONTENT_ENCODING          | Compress responses when the client accepts gzip or deflate. The proxy compresses the first 128 KB as a test and sends the response compressed only if that saves at least 5%. It never compresses HEAD responses. |          | true
+CONTENT_ENCODING          | Compress responses when the client accepts zstd, gzip or deflate. If it accepts several, the proxy picks zstd first, then gzip. The proxy compresses the first 128 KB as a test and sends the response compressed only if that saves at least 5%. It never compresses HEAD responses. |          | true
 HEALTHCHECK_PATH          | Health check path, e.g. /healthz. Fetches AWS_S3_KEY_PREFIX + path from S3. Returns 200 when S3 answers, even if the object is missing, and 500 when it does not. |          | -
 HEALTHCHECKER_PATH        | Used by docker healthcheck script, if different from HEALTHCHECK_PATH |          | -
 METRICS_PATH              | prometheus statistics /metrics                    |          | -

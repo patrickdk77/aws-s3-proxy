@@ -123,12 +123,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 		if c.ContentEncoding {
 			w.Header().Add("Vary", "Accept-Encoding")
 			accept, _ := header(r, "Accept-Encoding")
-			for _, e := range splitCsvLine(accept) {
-				if e == "gzip" || e == "deflate" {
-					encoding = e
-					break
-				}
-			}
+			encoding = pickEncoding(accept)
 		}
 		// Handle HTTP requests
 		writer := &custom{Writer: w, ResponseWriter: w,
@@ -184,6 +179,33 @@ func header(r *http.Request, key string) (string, bool) {
 		return candidate[0], true
 	}
 	return "", false
+}
+
+func pickEncoding(accept string) string {
+	offered := map[string]bool{}
+	for _, part := range splitCsvLine(accept) {
+		name, params, _ := strings.Cut(part, ";")
+		name = strings.ToLower(strings.TrimSpace(name))
+		offered[name] = offered[name] || acceptable(params)
+	}
+	for _, e := range []string{"zstd", "gzip", "deflate"} {
+		if offered[e] {
+			return e
+		}
+	}
+	return ""
+}
+
+func acceptable(params string) bool {
+	for _, p := range strings.Split(params, ";") {
+		k, v, _ := strings.Cut(strings.TrimSpace(p), "=")
+		if strings.EqualFold(strings.TrimSpace(k), "q") {
+			v = strings.TrimSpace(v)
+			q, err := strconv.ParseFloat(v, 64)
+			return err == nil && q > 0
+		}
+	}
+	return true
 }
 
 func splitCsvLine(data string) []string {

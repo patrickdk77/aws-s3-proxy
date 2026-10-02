@@ -2,11 +2,14 @@ package http
 
 import (
 	"bytes"
-	"compress/gzip"
-	"compress/zlib"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+
+	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zlib"
+	"github.com/klauspost/compress/zstd"
 )
 
 const (
@@ -17,6 +20,18 @@ const (
 type encoder interface {
 	io.WriteCloser
 	Flush() error
+	Reset(w io.Writer)
+}
+
+var encoders = map[string]*sync.Pool{
+	"zstd": {New: func() any {
+		e, _ := zstd.NewWriter(nil,
+			zstd.WithEncoderConcurrency(1),
+			zstd.WithWindowSize(1<<20))
+		return e
+	}},
+	"gzip":    {New: func() any { return gzip.NewWriter(nil) }},
+	"deflate": {New: func() any { return zlib.NewWriter(nil) }},
 }
 
 type switchWriter struct {
@@ -77,7 +92,10 @@ func (c *custom) Close() error {
 	if c.enc == nil {
 		return nil
 	}
-	return c.enc.Close()
+	err := c.enc.Close()
+	release(c.encoding, c.enc)
+	c.enc = nil
+	return err
 }
 
 func (c *custom) decide() error {
@@ -101,6 +119,7 @@ func (c *custom) decide() error {
 			return err
 		}
 		_ = enc.Close()
+		release(c.encoding, enc)
 	}
 	c.ResponseWriter.WriteHeader(c.status)
 	if len(sample) == 0 {
@@ -115,10 +134,14 @@ func saves(raw, packed int) bool {
 }
 
 func newEncoder(name string, w io.Writer) encoder {
-	if name == "gzip" {
-		return gzip.NewWriter(w)
-	}
-	return zlib.NewWriter(w)
+	enc := encoders[name].Get().(encoder)
+	enc.Reset(w)
+	return enc
+}
+
+func release(name string, enc encoder) {
+	enc.Reset(nil)
+	encoders[name].Put(enc)
 }
 
 func (c *custom) shouldCompress(status int) bool {
