@@ -152,7 +152,7 @@ func Setup() {
 			sortDateAsc = true
 			sortFileAsc = false
 		case "numberdesc":
-			sortFileDesc = false
+			sortFileDesc = true
 			sortFileAsc = false
 			sortNumeric = true
 		case "numberasc":
