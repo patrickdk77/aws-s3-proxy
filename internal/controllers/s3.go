@@ -157,20 +157,17 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 			metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 			if err != nil {
 				code, message := toHTTPError(err)
-				if (code == 404 || code == 403) && c.SPA && !strings.Contains(path, c.IndexDocument) {
-					idx := strings.LastIndex(path, "/")
-					if idx > -1 {
-						indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
-						var indexError error
-						obj, indexError = client.S3get(r.Context(), c.S3Bucket, indexPath, rangeHeader)
-						if indexError != nil {
-							code, message = toHTTPError(indexError)
-							http.Error(w, message, code)
-							return
-						}
-					}
-				} else {
+				key, ok := spaIndex(path, code)
+				if !ok {
 					http.Error(w, message, code)
+					return
+				}
+				var ierr error
+				obj, ierr = client.S3get(r.Context(),
+					c.S3Bucket, key, rangeHeader)
+				if ierr != nil {
+					code, msg := toHTTPError(ierr)
+					http.Error(w, msg, code)
 					return
 				}
 			}
@@ -205,20 +202,17 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 			// metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 			if err != nil {
 				code, message := toHTTPError(err)
-				if (code == 404 || code == 403) && c.SPA && !strings.Contains(path, c.IndexDocument) {
-					idx := strings.LastIndex(path, "/")
-					if idx > -1 {
-						indexPath := c.S3KeyPrefix + path[:idx+1] + c.IndexDocument
-						var indexError error
-						obj, indexError = client.S3head(r.Context(), c.S3Bucket, indexPath, rangeHeader)
-						if indexError != nil {
-							code, message = toHTTPError(indexError)
-							http.Error(w, message, code)
-							return
-						}
-					}
-				} else {
+				key, ok := spaIndex(path, code)
+				if !ok {
 					http.Error(w, message, code)
+					return
+				}
+				var ierr error
+				obj, ierr = client.S3head(r.Context(),
+					c.S3Bucket, key, rangeHeader)
+				if ierr != nil {
+					code, msg := toHTTPError(ierr)
+					http.Error(w, msg, code)
 					return
 				}
 			}
@@ -230,6 +224,19 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+func spaIndex(path string, code int) (string, bool) {
+	c := config.Config
+	if !c.SPA || strings.Contains(path, c.IndexDocument) {
+		return "", false
+	}
+	if code != http.StatusNotFound &&
+		code != http.StatusForbidden {
+		return "", false
+	}
+	idx := strings.LastIndex(path, "/")
+	return c.S3KeyPrefix + path[:idx+1] + c.IndexDocument, true
 }
 
 func cacheObject(key string, obj *s3.GetObjectOutput) error {

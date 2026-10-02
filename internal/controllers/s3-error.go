@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -9,26 +10,29 @@ import (
 )
 
 func toHTTPError(err error) (int, string) {
+	code := http.StatusInternalServerError
 	var ae smithy.APIError
 	if errors.As(err, &ae) {
 		switch ae.ErrorCode() {
 		case "NoSuchKey", "NoSuchBucket", "NotFound":
-			return http.StatusNotFound, err.Error()
+			code = http.StatusNotFound
 		case "AccessDenied":
-			return http.StatusForbidden, err.Error()
+			code = http.StatusForbidden
 		case "InvalidRange":
-			return http.StatusRequestedRangeNotSatisfiable, err.Error()
+			code = http.StatusRequestedRangeNotSatisfiable
 		}
 	}
 	// Check for typed errors as fallback or specific handling
 	var nsk *types.NoSuchKey
 	if errors.As(err, &nsk) {
-		return http.StatusNotFound, err.Error()
+		code = http.StatusNotFound
 	}
 	var nsb *types.NoSuchBucket
 	if errors.As(err, &nsb) {
-		return http.StatusNotFound, err.Error()
+		code = http.StatusNotFound
 	}
-
-	return http.StatusInternalServerError, err.Error()
+	if code == http.StatusInternalServerError {
+		log.Printf("[s3] %v", err)
+	}
+	return code, http.StatusText(code)
 }

@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,6 +18,8 @@ import (
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
+
+var newClient = service.NewClient
 
 // HealthcheckHandler wraps the content of each service dependency
 type healthcheck struct {
@@ -61,14 +64,21 @@ func HealthcheckHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	start := time.Now()
 	httpRes := &HealthcheckResponse{}
-	err := executeHealthCheck(req.Context(), service.NewClient(req.Context(), aws.String(config.Config.AwsRegion)))
+	client := newClient(req.Context(),
+		aws.String(config.Config.AwsRegion))
+	err := executeHealthCheck(req.Context(), client)
 	httpRes.S3Bucket.Time = time.Since(start)
 	httpRes.S3Bucket.TimeHuman = httpRes.S3Bucket.Time.Milliseconds()
 
 	if err == nil {
 		httpRes.S3Bucket.Healthy = true
 	} else {
-		httpRes.S3Bucket.Error = err.Error()
+		log.Printf("[healthcheck] %v", err)
+		httpRes.S3Bucket.Error = "S3 request failed"
+		var ae smithy.APIError
+		if errors.As(err, &ae) {
+			httpRes.S3Bucket.Error = ae.ErrorCode()
+		}
 	}
 	// marshal response
 	body, err := json.Marshal(httpRes)
