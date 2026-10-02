@@ -1,12 +1,27 @@
 package http
 
 import (
+	"bytes"
 	"compress/gzip"
 	"compress/zlib"
 	"io"
 	"net/http"
 	"strings"
 )
+
+const (
+	sampleSize = 128 << 10
+	minSaving  = 5
+)
+
+type encoder interface {
+	io.WriteCloser
+	Flush() error
+}
+
+type switchWriter struct {
+	io.Writer
+}
 
 type custom struct {
 	io.Writer
@@ -15,7 +30,9 @@ type custom struct {
 	Written     int64
 	encoding    string
 	wroteHeader bool
-	closer      io.Closer
+	sampling    bool
+	sample      []byte
+	enc         encoder
 }
 
 func (c *custom) Write(b []byte) (int, error) {
@@ -24,6 +41,14 @@ func (c *custom) Write(b []byte) (int, error) {
 	}
 	if !c.wroteHeader {
 		c.WriteHeader(http.StatusOK)
+	}
+	if c.sampling {
+		c.sample = append(c.sample, b...)
+		c.Written += int64(len(b))
+		if len(c.sample) < sampleSize {
+			return len(b), nil
+		}
+		return len(b), c.decide()
 	}
 	n, err := c.Writer.Write(b)
 	c.Written += int64(n)
@@ -35,27 +60,65 @@ func (c *custom) WriteHeader(status int) {
 		return
 	}
 	c.wroteHeader = true
+	c.status = status
 	if c.shouldCompress(status) {
-		c.Header().Set("Content-Encoding", c.encoding)
-		c.Header().Del("Content-Length")
-		var zw io.WriteCloser
-		if c.encoding == "gzip" {
-			zw = gzip.NewWriter(c.ResponseWriter)
-		} else {
-			zw = zlib.NewWriter(c.ResponseWriter)
-		}
-		c.Writer = zw
-		c.closer = zw
+		c.sampling = true
+		return
 	}
 	c.ResponseWriter.WriteHeader(status)
-	c.status = status
 }
 
 func (c *custom) Close() error {
-	if c.closer == nil {
+	if c.sampling {
+		if err := c.decide(); err != nil {
+			return err
+		}
+	}
+	if c.enc == nil {
 		return nil
 	}
-	return c.closer.Close()
+	return c.enc.Close()
+}
+
+func (c *custom) decide() error {
+	c.sampling = false
+	sample := c.sample
+	c.sample = nil
+	if len(sample) > 0 {
+		var packed bytes.Buffer
+		out := &switchWriter{Writer: &packed}
+		enc := newEncoder(c.encoding, out)
+		_, _ = enc.Write(sample)
+		_ = enc.Flush()
+		if saves(len(sample), packed.Len()) {
+			c.Header().Set("Content-Encoding", c.encoding)
+			c.Header().Del("Content-Length")
+			c.ResponseWriter.WriteHeader(c.status)
+			out.Writer = c.ResponseWriter
+			c.Writer = enc
+			c.enc = enc
+			_, err := out.Write(packed.Bytes())
+			return err
+		}
+		_ = enc.Close()
+	}
+	c.ResponseWriter.WriteHeader(c.status)
+	if len(sample) == 0 {
+		return nil
+	}
+	_, err := c.ResponseWriter.Write(sample)
+	return err
+}
+
+func saves(raw, packed int) bool {
+	return packed*100 <= raw*(100-minSaving)
+}
+
+func newEncoder(name string, w io.Writer) encoder {
+	if name == "gzip" {
+		return gzip.NewWriter(w)
+	}
+	return zlib.NewWriter(w)
 }
 
 func (c *custom) shouldCompress(status int) bool {

@@ -48,6 +48,7 @@ func TestAuthMatch(t *testing.T) {
 }
 
 func TestWithValidJWT(t *testing.T) {
+	restoreConfig(t)
 	username := "user"
 	password := "pass"
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -64,6 +65,7 @@ func TestWithValidJWT(t *testing.T) {
 }
 
 func TestWithoutValidJWT(t *testing.T) {
+	restoreConfig(t)
 	username := "user"
 	password := "pass"
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -80,6 +82,7 @@ func TestWithoutValidJWT(t *testing.T) {
 }
 
 func TestWithValidRemoteIPXForwardedFor(t *testing.T) {
+	restoreConfig(t)
 	config.Config.ForwardedFor = "X-FORWARDED-FOR"
 	req := httptest.NewRequest(http.MethodGet, sample, nil)
 	req.Header.Set("X-FORWARDED-FOR", "10.2.2.2")

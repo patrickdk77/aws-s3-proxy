@@ -181,25 +181,26 @@ func TestCompressImplicitStatus(t *testing.T) {
 	assert.Equal(t, page, gunzip(t, rr.Body.Bytes()))
 }
 
-func TestCompressErrorResponse(t *testing.T) {
+func TestCompressSkipsShortErrorBody(t *testing.T) {
 	h := func(w http.ResponseWriter) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 	}
 	rr := compressDo(t, "GET", "gzip", h)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
-	assert.Equal(t, "Not Found\n", gunzip(t, rr.Body.Bytes()))
+	assert.Empty(t, rr.Header().Get(ce))
+	assert.Equal(t, "Not Found\n", rr.Body.String())
 }
 
-func TestCompressHeadMatchesGet(t *testing.T) {
+func TestCompressHeadKeepsLength(t *testing.T) {
 	headers := func(w http.ResponseWriter) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set(cl, "1550")
 		w.WriteHeader(http.StatusOK)
 	}
-	get := compressDo(t, "GET", "gzip", html)
-	head := compressDo(t, "HEAD", "gzip", headers)
-	assert.Equal(t, get.Header().Get(ce), head.Header().Get(ce))
-	assert.Equal(t, get.Header().Get(cl), head.Header().Get(cl))
+	rr := compressDo(t, "HEAD", "gzip", headers)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Empty(t, rr.Header().Get(ce))
+	assert.Equal(t, "1550", rr.Header().Get(cl))
 }
 
 func TestCompressAccessLogCountsBytes(t *testing.T) {
