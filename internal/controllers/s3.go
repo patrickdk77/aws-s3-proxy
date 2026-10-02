@@ -71,15 +71,15 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	client := NewClientFunc(r.Context(), aws.String(config.Config.AwsRegion))
 
 	// Replace path with symlink.json
-	idx := strings.Index(path, "symlink.json")
-	if idx > -1 {
-		replaced, err := replacePathWithSymlink(r, client, c.S3Bucket, c.S3KeyPrefix+path[:idx+12])
+	if end := symlinkEnd(path); end > -1 {
+		replaced, err := replacePathWithSymlink(r, client,
+			c.S3Bucket, c.S3KeyPrefix+path[:end])
 		if err != nil {
 			code, message := toHTTPError(err)
 			http.Error(w, message, code)
 			return
 		}
-		path = aws.ToString(replaced) + path[idx+12:]
+		path = aws.ToString(replaced) + path[end:]
 	}
 
 	if c.CacheSize > 0 && c.CacheTTL > 0 && rangeHeader == nil {
@@ -282,12 +282,25 @@ func cacheObject(key string, obj *s3.GetObjectOutput) error {
 	return nil
 }
 
+func symlinkEnd(path string) int {
+	const name = "symlink.json"
+	off := 0
+	for _, seg := range strings.SplitAfter(path, "/") {
+		if strings.TrimSuffix(seg, "/") == name {
+			return off + len(name)
+		}
+		off += len(seg)
+	}
+	return -1
+}
+
 func replacePathWithSymlink(r *http.Request, client service.AWS, bucket, symlinkPath string) (*string, error) {
 	obj, err := client.S3get(r.Context(), bucket, symlinkPath, nil)
 	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
 	if err != nil {
 		return nil, err
 	}
+	defer obj.Body.Close()
 	link := struct {
 		URL string
 	}{}
