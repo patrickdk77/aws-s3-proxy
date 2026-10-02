@@ -92,47 +92,47 @@ func Setup() {
 		indexDocument = "index.html"
 	}
 	directoryListings := false
-	if b, err := strconv.ParseBool(os.Getenv("DIRECTORY_LISTINGS")); err == nil {
+	if b, ok := envBool("DIRECTORY_LISTINGS"); ok {
 		directoryListings = b
 	}
 	directoryListingsCheckIndex := false
-	if b, err := strconv.ParseBool(os.Getenv("DIRECTORY_LISTINGS_CHECK_INDEX")); err == nil {
+	if b, ok := envBool("DIRECTORY_LISTINGS_CHECK_INDEX"); ok {
 		directoryListingsCheckIndex = b
 	}
 	accessLog := false
-	if b, err := strconv.ParseBool(os.Getenv("ACCESS_LOG")); err == nil {
+	if b, ok := envBool("ACCESS_LOG"); ok {
 		accessLog = b
 	}
 	contentEncoding := true
-	if b, err := strconv.ParseBool(os.Getenv("CONTENT_ENCODING")); err == nil {
+	if b, ok := envBool("CONTENT_ENCODING"); ok {
 		contentEncoding = b
 	}
 	corsMaxAge := int64(600)
-	if i, err := strconv.ParseInt(os.Getenv("CORS_MAX_AGE"), 10, 64); err == nil {
+	if i, ok := envInt("CORS_MAX_AGE", 64); ok {
 		corsMaxAge = i
 	}
 	allPagesInDir := false
-	if b, err := strconv.ParseBool(os.Getenv("GET_ALL_PAGES_IN_DIR")); err == nil {
+	if b, ok := envBool("GET_ALL_PAGES_IN_DIR"); ok {
 		allPagesInDir = b
 	}
 	maxIdleConns := 150
-	if b, err := strconv.ParseInt(os.Getenv("MAX_IDLE_CONNECTIONS"), 10, 16); err == nil {
+	if b, ok := envInt("MAX_IDLE_CONNECTIONS", 16); ok {
 		maxIdleConns = int(b)
 	}
 	idleConnTimeout := time.Duration(10) * time.Second
-	if b, err := strconv.ParseInt(os.Getenv("IDLE_CONNECTION_TIMEOUT"), 10, 64); err == nil {
+	if b, ok := envInt("IDLE_CONNECTION_TIMEOUT", 64); ok {
 		idleConnTimeout = time.Duration(b) * time.Second
 	}
 	disableCompression := true
-	if b, err := strconv.ParseBool(os.Getenv("DISABLE_COMPRESSION")); err == nil {
+	if b, ok := envBool("DISABLE_COMPRESSION"); ok {
 		disableCompression = b
 	}
 	insecureTLS := false
-	if b, err := strconv.ParseBool(os.Getenv("INSECURE_TLS")); err == nil {
+	if b, ok := envBool("INSECURE_TLS"); ok {
 		insecureTLS = b
 	}
 	SPA := false
-	if b, err := strconv.ParseBool(os.Getenv("SPA")); err == nil {
+	if b, ok := envBool("SPA"); ok {
 		SPA = b
 	}
 	sortDateDesc := false
@@ -157,30 +157,33 @@ func Setup() {
 			sortNumeric = true
 		case "numberasc":
 			sortNumeric = true
+		case "fileasc":
+		default:
+			log.Print("[config] ignoring unknown SORT")
 		}
 	}
 	timeoutRead := time.Duration(60) * time.Second
-	if b, err := strconv.ParseInt(os.Getenv("POST_TIMEOUT"), 10, 64); err == nil {
+	if b, ok := envInt("POST_TIMEOUT", 64); ok {
 		timeoutRead = time.Duration(b) * time.Second
 	}
 	timeoutWrite := time.Duration(600) * time.Second
-	if b, err := strconv.ParseInt(os.Getenv("GET_TIMEOUT"), 10, 64); err == nil {
+	if b, ok := envInt("GET_TIMEOUT", 64); ok {
 		timeoutWrite = time.Duration(b) * time.Second
 	}
 	cacheSize := int64(0)
-	if b, err := strconv.ParseInt(os.Getenv("CACHE_SIZE"), 10, 64); err == nil {
+	if b, ok := envInt("CACHE_SIZE", 64); ok {
 		cacheSize = b * 1024 * 1024
 	}
 	cacheTTL := time.Duration(60) * time.Second
-	if b, err := strconv.ParseInt(os.Getenv("CACHE_TTL"), 10, 64); err == nil {
+	if b, ok := envInt("CACHE_TTL", 64); ok {
 		cacheTTL = time.Duration(b) * time.Second
 	}
 	cacheTTLIndex := time.Duration(60) * time.Second
-	if b, err := strconv.ParseInt(os.Getenv("CACHE_TTL_INDEX"), 10, 64); err == nil {
+	if b, ok := envInt("CACHE_TTL_INDEX", 64); ok {
 		cacheTTLIndex = time.Duration(b) * time.Second
 	}
 	cacheMaxFileSize := cacheSize / 4
-	if b, err := strconv.ParseInt(os.Getenv("CACHE_MAX_FILE_SIZE"), 10, 64); err == nil {
+	if b, ok := envInt("CACHE_MAX_FILE_SIZE", 64); ok {
 		cacheMaxFileSize = b * 1024 * 1024
 	}
 
@@ -307,6 +310,30 @@ func FlushAccessLog() {
 	if AccessLogWriter != nil {
 		_ = AccessLogWriter.Close()
 	}
+}
+
+func envBool(name string) (bool, bool) {
+	v := os.Getenv(name)
+	if v == "" {
+		return false, false
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		log.Printf("[config] ignoring invalid %s", name)
+	}
+	return b, err == nil
+}
+
+func envInt(name string, bits int) (int64, bool) {
+	v := os.Getenv(name)
+	if v == "" {
+		return 0, false
+	}
+	i, err := strconv.ParseInt(v, 10, bits)
+	if err != nil {
+		log.Printf("[config] ignoring invalid %s", name)
+	}
+	return i, err == nil
 }
 
 func createIPNets(src []string) ([]*net.IPNet, error) {
