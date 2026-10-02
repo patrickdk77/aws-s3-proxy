@@ -181,7 +181,8 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		setHeadersFromAwsResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
-		w.WriteHeader(determineHTTPStatus(obj))
+		w.WriteHeader(determineHTTPStatus(obj.ContentRange,
+			obj.ContentLength))
 		_, _ = io.Copy(w, obj.Body) // nolint
 	case "HEAD":
 		// Head a S3 object
@@ -218,7 +219,12 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		setHeadersFromAwsResponse(w, obj, c.HTTPCacheControl, c.HTTPExpires)
-		w.WriteHeader(http.StatusOK)
+		status := http.StatusOK
+		if h, ok := obj.(*s3.HeadObjectOutput); ok {
+			status = determineHTTPStatus(h.ContentRange,
+				h.ContentLength)
+		}
+		w.WriteHeader(status)
 	default:
 		// return method not allowed, 405
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)

@@ -5,35 +5,19 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
-func determineHTTPStatus(obj *s3.GetObjectOutput) int {
-	if obj.ContentRange != nil && len(*obj.ContentRange) > 0 {
-		if !totalFileSizeEqualToContentRange(obj) {
-			return http.StatusPartialContent
-		}
+func determineHTTPStatus(contentRange *string, length *int64) int {
+	cr := aws.ToString(contentRange)
+	if cr == "" {
+		return http.StatusOK
 	}
-	return http.StatusOK
-}
-
-func totalFileSizeEqualToContentRange(obj *s3.GetObjectOutput) bool {
-	totalSizeIsEqualToContentRange := false
-	if totalSize, err := strconv.ParseInt(getFileSizeAsString(obj), 10, 64); err == nil {
-		if totalSize == (*obj.ContentLength) {
-			totalSizeIsEqualToContentRange = true
-		}
+	_, total, found := strings.Cut(cr, "/")
+	total = strings.TrimSpace(total)
+	size, err := strconv.ParseInt(total, 10, 64)
+	if found && err == nil && size == aws.ToInt64(length) {
+		return http.StatusOK
 	}
-	return totalSizeIsEqualToContentRange
-}
-
-/*
- *   See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
- */
-func getFileSizeAsString(obj *s3.GetObjectOutput) string {
-	s := strings.Split(*obj.ContentRange, "/")
-	if len(s) > 1 {
-		return strings.TrimSpace(s[1])
-	}
-	return ""
+	return http.StatusPartialContent
 }
