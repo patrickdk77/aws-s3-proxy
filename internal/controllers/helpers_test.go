@@ -1,13 +1,27 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
+	"github.com/stretchr/testify/mock"
+)
+
+var (
+	noRange = mock.MatchedBy(func(s *string) bool {
+		return s == nil
+	})
+	anyRange = mock.MatchedBy(func(s *string) bool {
+		return s != nil
+	})
 )
 
 func setupMock(t *testing.T, cacheSize int64) *MockAWS {
@@ -33,4 +47,13 @@ func setupMock(t *testing.T, cacheSize int64) *MockAWS {
 	httpCache = nil
 	cacheOnce = sync.Once{}
 	return m
+}
+
+func object(body string) *s3.GetObjectOutput {
+	r := bytes.NewBufferString(body)
+	return &s3.GetObjectOutput{
+		Body:          io.NopCloser(r),
+		ContentLength: aws.Int64(int64(len(body))),
+		ContentType:   aws.String("text/plain"),
+	}
 }

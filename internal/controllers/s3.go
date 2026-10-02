@@ -24,7 +24,12 @@ import (
 	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
 
-const htmlContentType = "text/html; charset=utf-8"
+const (
+	htmlContentType    = "text/html; charset=utf-8"
+	cacheEntryOverhead = 1024
+)
+
+var maxAgeRe = regexp.MustCompile(`max-age=(\d+)`)
 
 var (
 	httpCache     *ccache.Cache[cachedResponse]
@@ -37,6 +42,10 @@ type cachedResponse struct {
 	Body        []byte
 	ContentType string
 	Exists      bool
+}
+
+func (r cachedResponse) Size() int64 {
+	return int64(len(r.Body)) + cacheEntryOverhead
 }
 
 type ObjectOutput interface {
@@ -123,6 +132,8 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		path += c.IndexDocument
 	}
 
+	useCache := httpCache != nil && rangeHeader == nil
+
 	switch r.Method {
 	case "GET":
 		// Get a S3 object
@@ -131,14 +142,16 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 
 		cacheKey := c.S3KeyPrefix + path
 		var item *ccache.Item[cachedResponse]
-		if httpCache != nil {
+		if useCache {
 			item = httpCache.Get(cacheKey)
 		}
 
 		if item != nil && !item.Expired() {
 			val := item.Value()
-			obj = val.GetObjectOutput
-			obj.Body = io.NopCloser(bytes.NewReader(val.Body))
+			hit := *val.GetObjectOutput
+			body := bytes.NewReader(val.Body)
+			hit.Body = io.NopCloser(body)
+			obj = &hit
 		} else {
 			obj, err = client.S3get(r.Context(), c.S3Bucket, c.S3KeyPrefix+path, rangeHeader)
 			metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.ProxySource)
@@ -161,31 +174,12 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-			if httpCache != nil && err == nil && aws.ToInt64(obj.ContentLength) <= c.CacheMaxFileSize {
-				buf := new(bytes.Buffer)
-				_, err := io.Copy(buf, obj.Body)
-				if err == nil {
-					obj.Body.Close()
-					bodyBytes := buf.Bytes()
-					obj.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-
-					// Calculate TTL
-					ttl := c.CacheTTL
-					if obj.CacheControl != nil {
-						matches := regexp.MustCompile(`max-age=(\d+)`).FindStringSubmatch(*obj.CacheControl)
-						if len(matches) == 2 {
-							if seconds, err := strconv.Atoi(matches[1]); err == nil {
-								if time.Duration(seconds)*time.Second < ttl {
-									ttl = time.Duration(seconds) * time.Second
-								}
-							}
-						}
-					}
-
-					httpCache.Set(cacheKey, cachedResponse{
-						GetObjectOutput: obj,
-						Body:            bodyBytes,
-					}, ttl)
+			if useCache && err == nil {
+				cerr := cacheObject(cacheKey, obj)
+				if cerr != nil {
+					code, msg := toHTTPError(cerr)
+					http.Error(w, msg, code)
+					return
 				}
 			}
 		}
@@ -199,7 +193,7 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 
 		cacheKey := c.S3KeyPrefix + path
 		var item *ccache.Item[cachedResponse]
-		if httpCache != nil {
+		if useCache {
 			item = httpCache.Get(cacheKey)
 		}
 
@@ -236,6 +230,49 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+func cacheObject(key string, obj *s3.GetObjectOutput) error {
+	c := config.Config
+	cc := strings.ToLower(aws.ToString(obj.CacheControl))
+	if aws.ToInt64(obj.ContentLength) > c.CacheMaxFileSize ||
+		strings.Contains(cc, "no-store") ||
+		strings.Contains(cc, "no-cache") ||
+		strings.Contains(cc, "private") {
+		return nil
+	}
+	body, err := io.ReadAll(obj.Body)
+	_ = obj.Body.Close()
+	if err != nil {
+		return err
+	}
+	obj.Body = io.NopCloser(bytes.NewReader(body))
+
+	ttl := c.CacheTTL
+	if m := maxAgeRe.FindStringSubmatch(cc); len(m) == 2 {
+		secs, err := strconv.Atoi(m[1])
+		d := time.Duration(secs) * time.Second
+		if err == nil && d < ttl {
+			ttl = d
+		}
+	}
+	headers := &s3.GetObjectOutput{
+		CacheControl:       obj.CacheControl,
+		ContentDisposition: obj.ContentDisposition,
+		ContentEncoding:    obj.ContentEncoding,
+		ContentLanguage:    obj.ContentLanguage,
+		ContentLength:      obj.ContentLength,
+		ContentRange:       obj.ContentRange,
+		ContentType:        obj.ContentType,
+		ETag:               obj.ETag,
+		ExpiresString:      obj.ExpiresString,
+		LastModified:       obj.LastModified,
+	}
+	httpCache.Set(key, cachedResponse{
+		GetObjectOutput: headers,
+		Body:            body,
+	}, ttl)
+	return nil
 }
 
 func replacePathWithSymlink(r *http.Request, client service.AWS, bucket, symlinkPath string) (*string, error) {
