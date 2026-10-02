@@ -15,6 +15,8 @@ import (
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 )
 
+const preflightHeader = "Access-Control-Request-Method"
+
 type ReqInfo struct {
 	stime     time.Time
 	method    string
@@ -91,6 +93,13 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			w.Header().Set("Access-Control-Allow-Methods", c.CorsAllowMethods)
 			w.Header().Set("Access-Control-Allow-Headers", c.CorsAllowHeaders)
 			w.Header().Set("Access-Control-Max-Age", strconv.FormatInt(c.CorsMaxAge, 10))
+			if r.Method == http.MethodOptions &&
+				r.Header.Get(preflightHeader) != "" {
+				w.WriteHeader(http.StatusNoContent)
+				ri.status = http.StatusNoContent
+				accessLog(ri)
+				return
+			}
 		}
 		if len(c.UsernameHeader) > 0 && len(r.Header.Get(c.UsernameHeader)) > 0 {
 			ri.user = r.Header.Get(c.UsernameHeader)
