@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
 	"github.com/stretchr/testify/assert"
 )
