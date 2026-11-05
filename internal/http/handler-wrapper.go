@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/patrickdk77/aws-s3-proxy/internal/config"
+	"github.com/patrickdk77/aws-s3-proxy/internal/service"
 )
 
 const preflightHeader = "Access-Control-Request-Method"
@@ -111,7 +112,7 @@ func WrapHandler(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 			return
 		}
 		// Auth with JWT
-		if (len(c.JwtUserField) > 0 || len(c.JwtSecretKey) > 0) && !isValidJwt(r, ri) {
+		if (len(c.JwtUserField) > 0 || len(c.JwtSecretKey) > 0 || len(c.JwksURI) > 0) && !isValidJwt(r, ri) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="REALM"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			ri.status = http.StatusUnauthorized
@@ -217,8 +218,13 @@ func splitCsvLine(data string) []string {
 	return parsed
 }
 
+func secretKeyKeyfunc(t *jwt.Token) (interface{}, error) {
+	secretKey := config.Config.JwtSecretKey
+	return []byte(secretKey), nil
+}
+
 func isValidJwt(r *http.Request, ri *ReqInfo) bool {
-	value := len(config.Config.JwtSecretKey) == 0
+	value := len(config.Config.JwtSecretKey) == 0 && len(config.Config.JwksURI) == 0
 	reqToken := r.Header.Get("Authorization")
 	if len(config.Config.JwtHeader) > 0 {
 		reqToken = r.Header.Get(config.Config.JwtHeader)
@@ -233,10 +239,15 @@ func isValidJwt(r *http.Request, ri *ReqInfo) bool {
 	if len(reqToken) < 1 {
 		return value
 	}
-	token, err := jwt.Parse(reqToken, func(t *jwt.Token) (interface{}, error) {
-		secretKey := config.Config.JwtSecretKey
-		return []byte(secretKey), nil
-	})
+	var keyfunc jwt.Keyfunc = secretKeyKeyfunc
+	if len(config.Config.JwksURI) > 0 {
+		jwks, jwksErr := service.JwksKeyfunc()
+		if jwksErr != nil {
+			return false
+		}
+		keyfunc = jwks.Keyfunc
+	}
+	token, err := jwt.Parse(reqToken, keyfunc)
 	if token == nil {
 		return value
 	}
