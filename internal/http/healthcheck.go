@@ -37,7 +37,7 @@ type HealthcheckResponse struct {
 func executeHealthCheck(ctx context.Context, awsClient service.AWS) error {
 	c := config.Config
 	obj, err := awsClient.S3get(ctx, c.S3Bucket,
-		c.S3KeyPrefix+c.HealthCheckPath, nil)
+		c.S3KeyPrefix+c.HealthCheckPath, service.S3ObjectOptions{})
 
 	metrics.UpdateS3Reads(err, metrics.GetObjectAction, metrics.HealthcheckSource)
 	// if file exists, return ok

@@ -16,21 +16,21 @@ import (
 // listobjects does not seem to share the issue, and works with or without the leading /
 
 // S3get returns a specified object from Amazon S3
-func (c client) S3get(ctx context.Context, bucket, key string, rangeHeader *string) (*s3.GetObjectOutput, error) {
+func (c client) S3get(ctx context.Context, bucket, key string, options S3ObjectOptions) (*s3.GetObjectOutput, error) {
 	req := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(strings.TrimLeft(key, "/")),
-		Range:  rangeHeader,
+		Range:  options.Range,
 	}
 	return c.Client.GetObject(ctx, req)
 }
 
 // S3head returns a specified object metadata from Amazon S3
-func (c client) S3head(ctx context.Context, bucket, key string, rangeHeader *string) (*s3.HeadObjectOutput, error) {
+func (c client) S3head(ctx context.Context, bucket, key string, options S3ObjectOptions) (*s3.HeadObjectOutput, error) {
 	req := &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(strings.TrimLeft(key, "/")),
-		Range:  rangeHeader,
+		Range:  options.Range,
 	}
 	return c.Client.HeadObject(ctx, req)
 }
