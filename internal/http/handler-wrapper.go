@@ -247,7 +247,14 @@ func isValidJwt(r *http.Request, ri *ReqInfo) bool {
 		}
 		keyfunc = jwks.Keyfunc
 	}
-	token, err := jwt.Parse(reqToken, keyfunc)
+	jwtOptions := []jwt.ParserOption{}
+	if len(config.Config.JwtIssuer) > 0 {
+		jwtOptions = append(jwtOptions, jwt.WithIssuer(config.Config.JwtIssuer))
+	}
+	if len(config.Config.JwtAudience) > 0 {
+		jwtOptions = append(jwtOptions, jwt.WithAudience(config.Config.JwtAudience))
+	}
+	token, err := jwt.Parse(reqToken, keyfunc, jwtOptions...)
 	if token == nil {
 		return value
 	}
