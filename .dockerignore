@@ -1,12 +1,16 @@
 Dockerfile
+Makefile
 package.json
 README.md
 LICENSE
+.devenv
 .dockerignore
 .git
+.pre-commit-config.yaml
+*.py
 app
 dist/
 hooks
+devenv.*
 docker-compose.yml
 docker-compose.override.yml
-
