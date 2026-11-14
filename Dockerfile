@@ -7,16 +7,21 @@ FROM ${BUILD_FROM_PREFIX}golang:alpine AS builder
 COPY .gitignore /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
-COPY . /go/src/
+COPY go.mod go.sum ./
+ENV GOCACHE=/go-cache
+ENV GOMODCACHE=/gomod-cache
+RUN --mount=type=cache,target=/gomod-cache \
+    export GOPROXY=direct \
+    && go mod download \
+    && go mod verify
+COPY . ./
 ARG BUILD_VERSION
 ARG BUILD_DATE
 ARG BUILD_REF
 ARG BUILD_GOARCH
 ARG BUILD_GOOS
-RUN export GOPROXY=direct \
- && go mod download \
- && go mod verify \
- && CGO_ENABLED=0 go build \
+RUN --mount=type=cache,target=/gomod-cache \
+    --mount=type=cache,target=/go-cache CGO_ENABLED=0 go build \
     -ldflags "-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} \
     -X main.date=${BUILD_DATE}" -o /health ./healthcheck \
