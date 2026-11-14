@@ -20,6 +20,10 @@ func toHTTPError(err error) (int, string) {
 			code = http.StatusForbidden
 		case "InvalidRange":
 			code = http.StatusRequestedRangeNotSatisfiable
+		case "NotModified":
+			code = http.StatusNotModified
+		case "PreconditionFailed":
+			code = http.StatusPreconditionFailed
 		}
 	}
 	// Check for typed errors as fallback or specific handling

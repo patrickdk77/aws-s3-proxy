@@ -63,6 +63,26 @@ func AwsS3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	objectOptions := service.S3ObjectOptions{}
+	// If-Match header
+	if candidate := r.Header.Get("If-Match"); !typeutils.IsZero(candidate) {
+		objectOptions.IfMatch = aws.String(candidate)
+	}
+	// If-Modified-Since header
+	if candidate := r.Header.Get("If-Modified-Since"); !typeutils.IsZero(candidate) {
+		if ifModifiedSince, err := http.ParseTime(candidate); err == nil {
+			objectOptions.IfModifiedSince = &ifModifiedSince
+		}
+	}
+	// If-None-Match header
+	if candidate := r.Header.Get("If-None-Match"); !typeutils.IsZero(candidate) {
+		objectOptions.IfNoneMatch = aws.String(candidate)
+	}
+	// If-Unmodified-Since header
+	if candidate := r.Header.Get("If-Unmodified-Since"); !typeutils.IsZero(candidate) {
+		if ifUnmodifiedSince, err := http.ParseTime(candidate); err == nil {
+			objectOptions.IfUnmodifiedSince = &ifUnmodifiedSince
+		}
+	}
 	// Range header
 	if candidate := r.Header.Get("Range"); !typeutils.IsZero(candidate) {
 		objectOptions.Range = aws.String(candidate)

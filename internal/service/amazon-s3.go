@@ -18,9 +18,13 @@ import (
 // S3get returns a specified object from Amazon S3
 func (c client) S3get(ctx context.Context, bucket, key string, options S3ObjectOptions) (*s3.GetObjectOutput, error) {
 	req := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(strings.TrimLeft(key, "/")),
-		Range:  options.Range,
+		Bucket:            aws.String(bucket),
+		Key:               aws.String(strings.TrimLeft(key, "/")),
+		IfMatch:           options.IfMatch,
+		IfModifiedSince:   options.IfModifiedSince,
+		IfNoneMatch:       options.IfNoneMatch,
+		IfUnmodifiedSince: options.IfUnmodifiedSince,
+		Range:             options.Range,
 	}
 	return c.Client.GetObject(ctx, req)
 }
@@ -28,9 +32,13 @@ func (c client) S3get(ctx context.Context, bucket, key string, options S3ObjectO
 // S3head returns a specified object metadata from Amazon S3
 func (c client) S3head(ctx context.Context, bucket, key string, options S3ObjectOptions) (*s3.HeadObjectOutput, error) {
 	req := &s3.HeadObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(strings.TrimLeft(key, "/")),
-		Range:  options.Range,
+		Bucket:            aws.String(bucket),
+		Key:               aws.String(strings.TrimLeft(key, "/")),
+		IfMatch:           options.IfMatch,
+		IfModifiedSince:   options.IfModifiedSince,
+		IfNoneMatch:       options.IfNoneMatch,
+		IfUnmodifiedSince: options.IfUnmodifiedSince,
+		Range:             options.Range,
 	}
 	return c.Client.HeadObject(ctx, req)
 }

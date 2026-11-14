@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -10,7 +11,11 @@ import (
 )
 
 type S3ObjectOptions struct {
-	Range *string
+	IfMatch           *string
+	IfModifiedSince   *time.Time
+	IfNoneMatch       *string
+	IfUnmodifiedSince *time.Time
+	Range             *string
 }
 
 // AWS is a service to interact with original AWS services
