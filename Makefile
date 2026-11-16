@@ -27,7 +27,6 @@ all: buildx
 buildx:
 	docker buildx build --pull --push \
 		--platform linux/amd64,linux/arm64 \
-		--build-arg BUILD_GOOS=linux \
 		--build-arg BUILD_DATE=$(DATE) \
 		--build-arg BUILD_REF=${GIT_SHORT_SHA1} \
 		--build-arg BUILD_VERSION=${GIT_VERSION} \
@@ -48,8 +47,6 @@ release: export DOCKER_EXTRATAGS=latest
 release: release-publish
 
 docker:
-	./hooks/post_checkout
-	./hooks/pre_build
 	./hooks/build
 #	./hooks/push
 
@@ -90,5 +87,3 @@ test:
 #			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \
 #			supinf/go-gox:1.11 --osarch "linux/amd64" \
 #			-ldflags "-s -w" -output "dist/{{.OS}}_{{.Arch}}"
-
-

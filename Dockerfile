@@ -1,9 +1,7 @@
 # AWS S3 Proxy
 # docker run -d -p 8080:80 -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_S3_BUCKET patrickdk/s3-proxy
 
-ARG BUILD_FROM_PREFIX
-
-FROM ${BUILD_FROM_PREFIX}golang:alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
 COPY .gitignore /usr/bin/
 RUN apk --no-cache add gcc musl-dev git
 WORKDIR /go/src/
@@ -15,17 +13,20 @@ RUN --mount=type=cache,target=/gomod-cache \
     && go mod download \
     && go mod verify
 COPY . ./
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 ARG BUILD_VERSION
 ARG BUILD_DATE
 ARG BUILD_REF
-ARG BUILD_GOARCH
-ARG BUILD_GOOS
 RUN --mount=type=cache,target=/gomod-cache \
-    --mount=type=cache,target=/go-cache CGO_ENABLED=0 go build \
+RUN --mount=type=cache,target=/go-cache \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 \
+    go build \
     -ldflags "-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} \
     -X main.date=${BUILD_DATE}" -o /health ./healthcheck \
- && CGO_ENABLED=0 go build \
+ && GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 \
+    go build \
     -ldflags "-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} \
     -X main.date=${BUILD_DATE}" -o /app

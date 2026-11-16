@@ -9,69 +9,22 @@ BUILD_REF=`git rev-parse --short HEAD`
 BUILD_VERSION="${DOCKER_TAG}"
 BUILD_REPO="${DOCKER_REPO//index.docker.io\/}"
 
-echo "✅ Will build the following architectures: $verified_build_architectures"
+echo "✅ Will build for the following platforms: $(join_by , ${platforms[*]})"
 echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
 
-for arch in ${verified_build_architectures[@]}; do
-  echo "✅ building $arch"
-  echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+echo "✅ building image"
+echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
 
-  BUILD_FROM_PREFIX="${build_from_prefix_map[${arch}]}"
-  QEMU_ARCH="${docker_qemu_arch_map[${arch}]}"
-  GO_ARCH="${docker_to_manifest_map[${arch}]}"
-  docker build --pull \
-    --build-arg BUILD_FROM_PREFIX=${BUILD_FROM_PREFIX} \
-    --build-arg BUILD_ARCH=${arch} \
-    --build-arg QEMU_ARCH=${QEMU_ARCH} \
-    --build-arg BUILD_GOARCH=${GO_ARCH} \
-    --build-arg BUILD_GOOS=linux \
+docker build --pull \
+    --platform $(join_by , ${platforms[*]}) \
     --build-arg BUILD_DATE=${BUILD_DATE} \
     --build-arg BUILD_REF=${BUILD_REF} \
     --build-arg BUILD_VERSION=${BUILD_VERSION} \
     --build-arg BUILD_REPO=${BUILD_REPO} \
     --file $DOCKERFILE_PATH \
-    --tag "${IMAGE_NAME}-${arch}"  \
+    --tag $IMAGE_NAME  \
     .
-done
 
-echo "✅ images built:"
+echo "✅ built image:"
 echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
 docker image ls
-
-# https://github.com/moby/moby/issues/36552
-#
-tempdir=$(mktemp -d -t yolo.XXXXXXXX)
-cd $tempdir
-
-for arch in ${verified_build_architectures[@]}; do
-  echo "✅ yolo fixing platform $arch"
-  echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
-
-  manifest_arch=${docker_to_manifest_map[${arch}]}
-  variant_arch=${docker_to_variant_map[${arch}]}
-  docker save "${IMAGE_NAME}-${arch}"| tar xv
-
-  for filename in */json; do
-    [ -e "$filename" ] || continue
-    jq --compact-output 'del(.architecture)' < "$filename" | sponge "$filename"
-    jq --compact-output 'del(.variant)' < "$filename" | sponge "$filename"
-  done
-
-  for filename in *.json; do
-    [ -e "$filename" ] || continue
-    ! [ $filename = "manifest.json" ] || continue
-
-    jq --arg architecture "$manifest_arch" \
-       --compact-output '.architecture=$architecture' < "$filename" | sponge "$filename"
-    if [ -n "${variant_arch}" ]; then
-      jq --arg variant "$variant_arch" \
-         --compact-output '.variant=$variant' < "$filename" | sponge "$filename"
-    fi 
-  done
-
-  tar cv . | docker load
-  rm -rf $tempdir/*
-done
-
-trap "exit 1"          HUP INT PIPE QUIT TERM
-trap "rm -rf $tempdir" EXIT
