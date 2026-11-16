@@ -82,6 +82,9 @@ test:
 			golangci/golangci-lint:latest-alpine \
 			sh -c "go list ./... | grep -v /vendor/ | xargs go test -p 1 -count=1"
 
+integration: docker
+	pytest test.py --image ${IMAGE_NAME}
+
 #build:
 #	@docker run --rm -it -v "${PWD}:/go/src/github.com/patrickdk77/aws-s3-proxy/" \
 #			-w /go/src/github.com/patrickdk77/aws-s3-proxy/ \

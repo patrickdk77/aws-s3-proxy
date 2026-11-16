@@ -15,7 +15,8 @@ workflows:
     '.github/workflows/test.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-go@v7.0.0'
-        - 'golangci/golangci-lint-action@v9.3.0'
+        - 'cachix/cachix-action@v17'
+        - 'cachix/install-nix-action@v31.11.5'
 dependencies:
     'actions/attest@v4.2.2':
         ref: 'v4.2.2'
@@ -37,6 +38,16 @@ dependencies:
         commit: 'sha1-b7ad1dad31e06c5925ef5d2fc7ad053ef454303e'
         owner_id: 44036562
         repo_id: 192624594
+    'cachix/cachix-action@v17':
+        ref: 'v17'
+        commit: 'sha1-38b082610b782e7e93e209c35fd730d399dee866'
+        owner_id: 36824654
+        repo_id: 211717886
+    'cachix/install-nix-action@v31.11.5':
+        ref: 'v31.11.5'
+        commit: 'sha1-3dc140bfc76c49fbd4dd958429132e3746bcb086'
+        owner_id: 36824654
+        repo_id: 212301524
     'docker/build-push-action@v7.4.0':
         ref: 'v7.4.0'
         commit: 'sha1-c3c9e263c25d99ce0380d002d59b67737d91b0dc'
@@ -57,11 +68,6 @@ dependencies:
         commit: 'sha1-f87e5991a6d7451dcb8d9637bfbc97413f497069'
         owner_id: 5429470
         repo_id: 288485773
-    'golangci/golangci-lint-action@v9.3.0':
-        ref: 'v9.3.0'
-        commit: 'sha1-ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a'
-        owner_id: 35628013
-        repo_id: 232539879
     'reproducible-containers/buildkit-cache-dance@v3.4.0':
         ref: 'v3.4.0'
         commit: 'sha1-5422eac04292c961a382e0f584ea0f03ad9da723'

@@ -1,5 +1,7 @@
-vendor/*
+.devenv/
+.pre-commit-config.yaml
+app
+aws-s3-proxy
 dist/*
 docker-compose.override.yml
-aws-s3-proxy
-app
+vendor/*
