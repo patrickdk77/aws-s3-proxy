@@ -19,7 +19,7 @@ ARG BUILD_VERSION
 ARG BUILD_DATE
 ARG BUILD_REF
 RUN --mount=type=cache,target=/gomod-cache \
-RUN --mount=type=cache,target=/go-cache \
+    --mount=type=cache,target=/go-cache \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 \
     go build \
     -ldflags "-s -w -X main.ver=${BUILD_VERSION} \
@@ -34,7 +34,7 @@ RUN --mount=type=cache,target=/go-cache \
 FROM alpine AS libs
 RUN apk --no-cache add ca-certificates
 
-FROM scratch
+FROM scratch AS base
 COPY --from=libs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /health /health
 COPY --from=builder /app /aws-s3-proxy
@@ -67,3 +67,8 @@ LABEL maintainer="Patrick Domack (patrickdk@patrickdk.com)" \
   org.opencontainers.image.licenses="MIT" \
   org.opencontainers.image.ref.name="aws-s3-proxy" \
   version="${BUILD_VERSION}"
+
+FROM base AS dist-lambda
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0 /lambda-adapter /opt/extensions/lambda-adapter
+
+FROM base AS dist
